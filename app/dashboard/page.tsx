@@ -14,7 +14,7 @@ export default function Dashboard(){
           <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-echo-red shadow-card"><ShieldCheck size={14}/> AI ready • Location active</span>
           <h2 className="mt-5 max-w-xl text-3xl font-extrabold leading-tight sm:text-4xl">Help, instantly.<br/><span className="text-echo-red">When it matters most.</span></h2>
           <p className="mt-4 max-w-lg text-sm leading-6 text-echo-muted">Real-time guidance, immediate support, and faster access to healthcare in critical moments.</p>
-          <div className="mt-6 flex flex-wrap gap-3"><Link href="/ai" className="echo-btn-primary"><Mic size={17}/> Talk to AI</Link><Link href="/emergency" className="echo-btn-secondary"><SirenIcon/> Emergency</Link></div>
+          <div className="mt-6 flex flex-wrap gap-3"><Link href="/ai" className="echo-btn-primary"><Mic size={17}/> Talk to AI</Link><Link href="/emergency" className="echo-btn-secondary"><Siren size={17}/> Emergency</Link></div>
         </div>
         <div className="flex items-center justify-center"><div className="relative grid h-48 w-48 place-items-center rounded-full border-8 border-red-100 bg-white shadow-lift"><div className="grid h-28 w-28 place-items-center rounded-full bg-echo-red text-white shadow-lg"><Mic size={42}/></div><span className="absolute -bottom-2 rounded-full bg-white px-3 py-1 text-[10px] font-bold shadow-card">Tap to speak</span></div></div>
       </div>
