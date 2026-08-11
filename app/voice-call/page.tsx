@@ -1,38 +1,24 @@
- "use client";
+"use client";
 import AppShell from "@/components/AppShell";
 import Avatar from "@/components/Avatar";
-import Link from "next/link";
-import { Bot, Mic, MicOff, PhoneOff, Volume2, Bluetooth, Grid2X2, UserPlus, CircleDot, ChevronRight } from "lucide-react";
+import StatusBadge from "@/components/StatusBadge";
+import Waveform from "@/components/Waveform";
+import { Bot, Bluetooth, CircleDot, Grid2X2, Mic, MicOff, PhoneOff, UserPlus, Volume2 } from "lucide-react";
 import { useState } from "react";
 
 export default function VoiceCall(){
- const [muted,setMuted]=useState(false);
- return <AppShell title="Voice Call" subtitle="Live emergency voice consultation">
-  <div className="grid min-h-[calc(100vh-170px)] gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-   <section className="overflow-hidden rounded-2xl bg-[#101010] text-white shadow-lift">
-    <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-      <div><div className="text-sm font-bold">Dr. Musa Ahmed</div><div className="text-[10px] text-gray-400">Cardiologist • Voice consultation</div></div>
-      <span className="flex items-center gap-2 rounded-full bg-green-500/15 px-3 py-1.5 text-xs font-bold text-green-300"><span className="h-2 w-2 rounded-full bg-green-400"/> 00:08:32</span>
-    </div>
-    <div className="flex min-h-[560px] flex-col items-center justify-center p-8 text-center">
-      <div className="relative"><div className="absolute inset-[-24px] rounded-full border border-echo-red/30 animate-ping"/><Avatar name="Dr. Musa Ahmed" className="relative h-36 w-36"/></div>
-      <h2 className="mt-8 text-2xl font-extrabold">Dr. Musa Ahmed</h2><p className="mt-1 text-sm text-gray-400">Cardiologist • Speaking with you</p>
-      <div className="mt-7 flex items-end gap-1">{Array.from({length:34}).map((_,i)=><span key={i} className="w-1 rounded-full bg-echo-red" style={{height:`${12+(i%8)*5}px`}}/>)}</div>
-      <div className="mt-10 flex items-center gap-3 rounded-2xl bg-white/5 p-3">
-        <button onClick={()=>setMuted(!muted)} className={`grid h-12 w-12 place-items-center rounded-xl ${muted?"bg-white text-black":"bg-white/10 text-white"}`}>{muted?<MicOff size={19}/>:<Mic size={19}/>}</button>
-        <button className="grid h-12 w-12 place-items-center rounded-xl bg-white/10"><Volume2 size={19}/></button>
-        <button className="grid h-12 w-12 place-items-center rounded-xl bg-white/10"><Bluetooth size={19}/></button>
-        <button className="grid h-12 w-12 place-items-center rounded-xl bg-white/10"><Grid2X2 size={19}/></button>
-        <button className="grid h-12 w-12 place-items-center rounded-xl bg-echo-emergency"><PhoneOff size={19}/></button>
-      </div>
-    </div>
+ const [muted,setMuted]=useState(false); const [speaker,setSpeaker]=useState(true);
+ return <AppShell title="Voice Call" subtitle="Secure emergency voice consultation" mode="live">
+  <div className="grid min-h-[calc(100vh-168px)] gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+   <section className="relative flex min-h-[620px] min-w-0 flex-col overflow-hidden rounded-2xl bg-[#101010] text-white shadow-lift">
+    <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4"><div><div className="text-sm font-bold">Dr. Musa Ahmed</div><div className="text-[10px] text-gray-400">Cardiologist • Voice consultation</div></div><StatusBadge tone="success" dot>00:08:32</StatusBadge></header>
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center sm:p-10"><div className="relative"><div className="absolute inset-[-28px] rounded-full border border-echo-red/30 animate-ping"/><div className="absolute inset-[-14px] rounded-full border border-echo-red/25"/><Avatar name="Dr. Musa Ahmed" className="relative h-32 w-32 sm:h-40 sm:w-40"/></div><h2 className="mt-8 text-2xl font-extrabold">Dr. Musa Ahmed</h2><p className="mt-1 text-sm text-gray-400">Cardiologist • Speaking with you</p><div className="mt-6 w-full max-w-md"><Waveform bars={38} tone="red"/><div className="mt-2 text-[10px] text-gray-500">Live voice activity</div></div><div className="mt-8 grid w-full max-w-md grid-cols-3 gap-2 text-xs text-gray-300"><div className="rounded-xl bg-white/5 p-3"><div className="font-bold text-white">HD Voice</div><div className="mt-1">Excellent</div></div><div className="rounded-xl bg-white/5 p-3"><div className="font-bold text-white">Network</div><div className="mt-1">Excellent</div></div><div className="rounded-xl bg-white/5 p-3"><div className="font-bold text-white">Privacy</div><div className="mt-1">Secure</div></div></div><div className="mt-8 flex flex-wrap justify-center gap-2 rounded-2xl bg-white/5 p-2"><button onClick={()=>setMuted(v=>!v)} className={`grid h-12 w-12 place-items-center rounded-xl ${muted?"bg-white text-black":"bg-white/10"}`} aria-label={muted?"Unmute microphone":"Mute microphone"}>{muted?<MicOff size={19}/>:<Mic size={19}/>}</button><button onClick={()=>setSpeaker(v=>!v)} className={`grid h-12 w-12 place-items-center rounded-xl ${speaker?"bg-white/10":"bg-white text-gray-400"}`} aria-label="Toggle speaker"><Volume2 size={19}/></button><button className="grid h-12 w-12 place-items-center rounded-xl bg-white/10" aria-label="Bluetooth"><Bluetooth size={19}/></button><button className="grid h-12 w-12 place-items-center rounded-xl bg-white/10" aria-label="Keypad"><Grid2X2 size={19}/></button><button className="grid h-12 w-12 place-items-center rounded-xl bg-echo-emergency" aria-label="End call"><PhoneOff size={19}/></button></div></div>
    </section>
-   <aside className="space-y-4">
-    <div className="echo-card p-5"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-purple-50 text-purple-700"><Bot size={19}/></span><div><div className="font-extrabold">AI Assistant</div><div className="text-[10px] text-green-600">● Listening</div></div></div><div className="mt-4 rounded-xl bg-gray-50 p-4 text-xs leading-5 text-echo-muted">Live transcription and emergency guidance can appear here during the voice call.</div></div>
-    <div className="echo-card p-5"><div className="flex items-center justify-between"><h2 className="font-extrabold">Call controls</h2><span className="text-xs text-echo-muted">More</span></div><div className="mt-4 grid grid-cols-2 gap-2">{[["Add participant",UserPlus],["Record call",CircleDot],["Keypad",Grid2X2],["Device",Bluetooth]].map(([label,I])=><button key={label as string} className="flex items-center gap-2 rounded-xl border border-echo-border p-3 text-xs font-semibold hover:bg-gray-50"><I size={16}/>{label as string}</button>)}</div></div>
-    <Link href="/timeline" className="echo-card flex items-center gap-3 p-5"><span className="flex-1"><div className="font-extrabold">Emergency timeline</div><div className="mt-1 text-xs text-echo-muted">See live response progress</div></span><ChevronRight size={17}/></Link>
+   <aside className="space-y-4 xl:max-h-[calc(100vh-168px)] xl:overflow-y-auto xl:pr-1">
+    <div className="echo-card p-5"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-purple-50 text-purple-700"><Bot size={19}/></span><div><div className="font-extrabold">AI Assistant</div><div className="text-[10px] text-green-600">● Listening</div></div></div><div className="mt-4 rounded-xl bg-gray-50 p-4 text-xs leading-5 text-echo-muted">Live transcription and emergency guidance can appear here during the voice call.</div><div className="mt-3"><Waveform bars={26} compact tone="red"/></div></div>
+    <div className="echo-card p-5"><div className="flex items-center justify-between"><h2 className="font-extrabold">Call controls</h2><StatusBadge>More</StatusBadge></div><div className="mt-4 grid grid-cols-2 gap-2">{[["Add participant",UserPlus],["Record call",CircleDot],["Keypad",Grid2X2],["Bluetooth",Bluetooth]].map(([label,I])=>{const Icon=I as any;return <button key={label as string} className="flex min-h-12 items-center gap-2 rounded-xl border border-echo-border p-3 text-xs font-semibold hover:bg-gray-50"><Icon size={16}/>{label as string}</button>})}</div></div>
+    <div className="echo-card p-5"><div className="eyebrow">Live transcript</div><div className="mt-4 space-y-3 text-xs leading-5"><div><span className="font-bold">Doctor:</span> How are you feeling?</div><div className="rounded-xl bg-gray-50 p-3"><span className="font-bold">You:</span> I still have some chest discomfort.</div><div><span className="font-bold">AI:</span> I&apos;m monitoring the conversation.</div></div></div>
    </aside>
   </div>
  </AppShell>
 }
-

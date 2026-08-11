@@ -5,20 +5,23 @@
 
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
-body {
-  background: #FAFAFA;
-  color: #101010;
-  font-family: Inter, Arial, sans-serif;
-}
-button, a { -webkit-tap-highlight-color: transparent; }
+body { background: #FAFAFA; color: #101010; font-family: Inter, Arial, sans-serif; }
+button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+button, a { touch-action: manipulation; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid rgba(214,0,0,.18); outline-offset: 2px; }
 ::selection { background: #ffd7d5; color: #101010; }
 
 @layer components {
   .echo-card { @apply rounded-2xl border border-echo-border bg-white shadow-card; }
   .echo-card-soft { @apply rounded-2xl border border-echo-border bg-white; }
-  .echo-btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-echo-red px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 active:scale-[0.98]; }
-  .echo-btn-secondary { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-echo-emergency bg-white px-4 py-3 text-sm font-semibold text-echo-red transition hover:bg-red-50 active:scale-[0.98]; }
-  .echo-icon-btn { @apply inline-flex h-10 w-10 items-center justify-center rounded-xl border border-echo-border bg-white text-echo-ink transition hover:border-red-200 hover:bg-red-50; }
+  .echo-btn-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-echo-red px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50; }
+  .echo-btn-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-echo-emergency bg-white px-4 py-3 text-sm font-semibold text-echo-red transition hover:bg-red-50 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50; }
+  .echo-icon-btn { @apply inline-flex h-10 w-10 items-center justify-center rounded-xl border border-echo-border bg-white text-echo-ink transition hover:border-red-200 hover:bg-red-50 active:scale-[0.97]; }
   .eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.16em] text-echo-muted; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
