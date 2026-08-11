@@ -1,6 +1,7 @@
 "use client";
 import AppShell from "@/components/AppShell";
 import Avatar from "@/components/Avatar";
+import VideoTile from "@/components/VideoTile";
 import StatusBadge from "@/components/StatusBadge";
 import StatCard from "@/components/StatCard";
 import Waveform from "@/components/Waveform";
