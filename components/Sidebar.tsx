@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Mic, Siren, History, UserRound, Video, Stethoscope, MessageCircle, HeartPulse, Phone } from "lucide-react";
+import { Home, Mic, Siren, History, UserRound, Video, Stethoscope, MessageCircle, HeartPulse, Phone, Handshake } from "lucide-react";
 import Logo from "./Logo";
 
 const items = [
@@ -14,6 +14,9 @@ const communication = [
   {href:"/video-call", label:"Video call", icon:Video},
   {href:"/voice-call", label:"Voice call", icon:Phone},
   {href:"/ai-conversation", label:"AI conversation", icon:MessageCircle},
+];
+const platform = [
+  {href:"/partnership", label:"Partnerships", icon:Handshake},
 ];
 const records = [
   {href:"/timeline", label:"Timeline", icon:History},
@@ -34,6 +37,8 @@ export default function Sidebar(){
    <nav className="mt-2 space-y-1">{items.map(item=><NavLink key={item.href} item={item} path={path}/>)}</nav>
    <div className="mt-6 text-[10px] font-bold uppercase tracking-[.16em] text-echo-muted">Communication</div>
    <nav className="mt-2 space-y-1">{communication.map(item=><NavLink key={item.href} item={item} path={path}/>)}</nav>
+   <div className="mt-6 text-[10px] font-bold uppercase tracking-[.16em] text-echo-muted">Platform</div>
+   <nav className="mt-2 space-y-1">{platform.map(item=><NavLink key={item.href} item={item} path={path}/>)}</nav>
    <div className="mt-6 text-[10px] font-bold uppercase tracking-[.16em] text-echo-muted">Records</div>
    <nav className="mt-2 space-y-1">{records.map(item=><NavLink key={item.href} item={item} path={path}/>)}</nav>
    <div className="mt-auto rounded-2xl border border-red-100 bg-red-50 p-4"><div className="flex items-center gap-2 text-xs font-bold text-echo-red"><HeartPulse size={15}/> Emergency ready</div><p className="mt-2 text-[11px] leading-4 text-echo-muted">Fast access to AI guidance, doctors and emergency services.</p></div>
