@@ -1,0 +1,1 @@
+export default function SectionTitle({title,action}:{title:string;action?:string}){return <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-extrabold">{title}</h2>{action&&<button className="text-xs font-bold text-echo-red">{action}</button>}</div>}

@@ -1,0 +1,3 @@
+import "./globals.css";
+export const metadata={title:"Emergency Echo",description:"AI-powered emergency assistance UI"};
+export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en"><body>{children}</body></html>}

@@ -1,0 +1,13 @@
+{
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"c:/Users/Deredz/Documents/Web Apps/dummyEcho/.codex/vexp-hint.sh\"",
+          "timeout": 5
+        }
+      ]
+    }
+  ]
+}
