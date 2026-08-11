@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Mic, Siren, History, UserRound, Video, Stethoscope, MessageCircle, HeartPulse, Phone, Handshake } from "lucide-react";
+import { Home, Mic, Siren, History, UserRound, Video, Stethoscope, MessageCircle, HeartPulse, Phone, Handshake, ShoppingBag } from "lucide-react";
 import Logo from "./Logo";
 
 const items = [
@@ -17,6 +17,7 @@ const communication = [
 ];
 const platform = [
   {href:"/partnership", label:"Partnerships", icon:Handshake},
+  {href:"/marketplace", label:"Marketplace", icon:ShoppingBag},
 ];
 const records = [
   {href:"/timeline", label:"Timeline", icon:History},

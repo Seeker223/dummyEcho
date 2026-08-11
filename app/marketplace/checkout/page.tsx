@@ -1,0 +1,17 @@
+import Link from "next/link";
+import { ArrowLeft, CheckCircle2, MapPin, PackageCheck, ShieldCheck, Truck } from "lucide-react";
+import MarketplaceShell from "@/components/MarketplaceShell";
+
+export default function CheckoutPage(){
+ return <MarketplaceShell title="Checkout" subtitle="Review delivery, payment and order details before placing your order.">
+  <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+   <div className="space-y-5">
+    <Link href="/marketplace/products" className="inline-flex items-center gap-2 text-xs font-bold text-echo-muted"><ArrowLeft size={14}/> Continue shopping</Link>
+    <section className="echo-card p-5"><div className="flex items-center justify-between"><h3 className="text-sm font-extrabold">Delivery information</h3><button className="text-xs font-bold text-echo-red">Change</button></div><div className="mt-4 rounded-2xl border border-echo-border p-4"><div className="flex gap-3"><MapPin size={18} className="text-echo-red"/><div><div className="text-sm font-bold">John Doe</div><div className="mt-1 text-xs leading-5 text-echo-muted">12 Allen Avenue, Ikeja, Lagos<br/>Nigeria</div></div></div></div></section>
+    <section className="echo-card p-5"><h3 className="text-sm font-extrabold">Payment method</h3><div className="mt-4 grid gap-3 sm:grid-cols-3">{["Card","Bank Transfer","USSD"].map((x,i)=><button key={x} className={`rounded-xl border p-3 text-left text-xs font-bold ${i===0?"border-echo-red bg-red-50 text-echo-red":"border-echo-border"}`}>{x}</button>)}</div></section>
+    <section className="echo-card p-5"><h3 className="text-sm font-extrabold">Delivery option</h3><div className="mt-4 flex items-center justify-between rounded-xl border border-green-200 bg-green-50 p-4"><div className="flex items-center gap-3"><Truck size={19} className="text-green-700"/><div><div className="text-xs font-extrabold">Fast delivery</div><div className="mt-1 text-[11px] text-echo-muted">Expected within 1–2 business days</div></div></div><span className="text-xs font-extrabold">₦5,000</span></div></section>
+   </div>
+   <aside className="echo-card h-fit p-5"><h3 className="text-sm font-extrabold">Order summary</h3><div className="mt-4 flex items-center gap-3 rounded-xl bg-gray-50 p-3"><div className="grid h-12 w-12 place-items-center rounded-xl bg-white text-echo-red"><PackageCheck size={23}/></div><div className="min-w-0 flex-1"><div className="truncate text-xs font-extrabold">Automatic Defibrillator (AED)</div><div className="mt-1 text-[11px] text-echo-muted">Qty 1 • MedEquip Solutions</div></div><div className="text-xs font-bold">₦950,000</div></div><div className="mt-5 space-y-3 border-t pt-4 text-xs"><div className="flex justify-between"><span className="text-echo-muted">Subtotal</span><span className="font-bold">₦950,000</span></div><div className="flex justify-between"><span className="text-echo-muted">Delivery fee</span><span className="font-bold">₦5,000</span></div><div className="flex justify-between border-t pt-3 text-sm"><span className="font-extrabold">Total</span><span className="font-extrabold">₦955,000</span></div></div><button className="echo-btn-primary mt-5 w-full justify-center"><CheckCircle2 size={16}/> Place Order</button><div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-echo-muted"><ShieldCheck size={14} className="text-green-600"/> Secure marketplace transaction</div></aside>
+  </div>
+ </MarketplaceShell>
+}
