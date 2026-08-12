@@ -1,0 +1,1202 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ee-paystack-init",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "92995b12-2107-41ff-91e0-51da9a1cd73a",
+      "name": "Init Payment Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        16
+      ],
+      "webhookId": "ee-paystack-init-001",
+      "notes": "Receives: { email, amount, user_id } from frontend WalletAddFundsScreen"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst email   = body.email;\nconst user_id = body.user_id;\nconst amount  = body.amount;\n\nif (!email || !user_id || !amount) {\n  throw new Error('Missing required fields: email, user_id, amount');\n}\n\nconst amountKobo = Math.round(parseFloat(amount));\nconst amountNGN  = amountKobo / 100;\nconst reference  = `EE_${user_id.replace(/-/g,'').substring(0,8)}_${Date.now()}`;\n\nreturn [{ json: { email, user_id, amount: amountNGN, amountKobo, reference } }];"
+      },
+      "id": "bf878d24-c2b9-4d39-8535-09b73a01c641",
+      "name": "Parse & Validate Init Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst baseUrl = String($env.NEXT_PUBLIC_APP_URL || $env.APP_URL || 'http://localhost:3000').replace(/\\/$/, '');\n\nconst body = {\n  email:     ctx.email,\n  amount:    ctx.amountKobo,\n  reference: ctx.reference,\n  metadata: {\n    user_id: ctx.user_id,\n    custom_fields: [{\n      display_name:  'User ID',\n      variable_name: 'user_id',\n      value:         ctx.user_id\n    }]\n  },\n  callback_url: ctx.callback_url || `${baseUrl}/paystack-callback?status=success`\n};\n\nreturn [{ json: { paystackBody: JSON.stringify(body), ...ctx } }];"
+      },
+      "id": "a4917439-4c01-4e76-900d-8160fbcc6df9",
+      "name": "Build Paystack Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst paystackSecret = String($env.PAYSTACK_SECRET_KEY || $env.PAYSTACK_LIVE_SECRET_KEY || $env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY || '').trim();\nconst baseUrl = String($env.NEXT_PUBLIC_APP_URL || $env.APP_URL || 'http://localhost:3000').replace(/\\/$/, '');\n\nif (!paystackSecret) {\n  throw new Error('Missing PAYSTACK_SECRET_KEY / PAYSTACK_LIVE_SECRET_KEY environment variable.');\n}\n\nconst data = await this.helpers.httpRequest({\n  method: 'POST',\n  url: 'https://api.paystack.co/transaction/initialize',\n  headers: {\n    'Authorization': `Bearer ${paystackSecret}`,\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({\n    email:        ctx.email,\n    amount:       ctx.amountKobo,\n    reference:    ctx.reference,\n    metadata: {\n      user_id: ctx.user_id,\n      topup_amount: ctx.amount, // We save the pure amount here\n      custom_fields: [{\n        display_name:  'User ID',\n        variable_name: 'user_id',\n        value:         ctx.user_id\n      }]\n    },\n    callback_url: ctx.callback_url || `${baseUrl}/paystack-callback?status=success`\n  })\n});\n\nif (!data.status) throw new Error('Paystack error: ' + JSON.stringify(data));\n\nreturn [{ json: data.data }];"
+      },
+      "id": "ab56bc6d-7c67-4fbf-8736-7b12a742dcef",
+      "name": "Initialize Paystack Transaction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const paystackRes = $input.first().json;\nconst ctx         = $('Parse & Validate Init Request').first().json;\n\n// The data wrapper was already removed in the previous node, so we grab variables directly:\nconst { authorization_url, reference, access_code } = paystackRes;\n\nreturn [{ json: {\n  authorization_url,\n  reference,\n  access_code,\n  user_id:    ctx.user_id,\n  email:      ctx.email,\n  amount:     ctx.amount,\n  amountKobo: ctx.amountKobo,\n  status:     'pending',\n  created_at: new Date().toISOString()\n}}];"
+      },
+      "id": "8ba2092f-875d-450b-94ce-311463b0b806",
+      "name": "Parse Paystack Init Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "wallet_transactions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "reference",
+              "fieldValue": "={{ $json.reference }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $json.amount }}"
+            },
+            {
+              "fieldId": "type",
+              "fieldValue": "topup"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "pending"
+            },
+            {
+              "fieldId": "provider",
+              "fieldValue": "paystack"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "=={{ JSON.stringify({ access_code: $json.access_code, email: $json.email }) }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $json.created_at }}"
+            }
+          ]
+        }
+      },
+      "id": "96dd2e89-ab8a-487f-baf4-4c1af65eb566",
+      "name": "Save Pending Transaction",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        16
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, authorization_url: $('Parse Paystack Init Response').first().json.authorization_url, reference: $('Parse Paystack Init Response').first().json.reference }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "2dd5ead8-7df2-4dcc-9b65-c4393f12f3c4",
+      "name": "Return Auth URL to Frontend",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ee-withdraw",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a68bf250-80ce-49db-a7b0-2e296ea469ad",
+      "name": "Withdrawal Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -848,
+        480
+      ],
+      "webhookId": "d15eb3db-5fbf-419c-ad49-6f24cd4cb41d",
+      "notes": "POST body: { user_id, amount, bank_code, account_number, account_name, narration? }"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id        = body.user_id;\nconst email          = body.email;\nconst amount         = Number(body.amount);         // in Naira\nconst bank_code      = body.bank_code;\nconst account_number = body.account_number;\nconst account_name   = body.account_name;\nconst narration      = body.narration || 'EmergencyEcho Withdrawal';\n\n// Validate\nconst errors = [];\nif (!user_id)         errors.push('user_id is required');\nif (!email)           errors.push('email is required');\nif (!amount || amount < 100) errors.push('Minimum withdrawal is ₦100');\nif (!bank_code)       errors.push('bank_code is required');\nif (!account_number)  errors.push('account_number is required');\nif (!account_name)    errors.push('account_name is required');\n\nif (errors.length > 0) {\n  return [{ json: { valid: false, errors } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    user_id,\n    email,\n    amount,\n    amount_kobo: amount * 100,   // Paystack uses kobo\n    bank_code,\n    account_number,\n    account_name,\n    narration,\n    requested_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "4286a6f9-0b2b-4143-a619-583b9d557806",
+      "name": "Validate Withdrawal Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "7f16c098-fc48-4f90-a4ee-3d2e70dbe642",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, errors: $json.errors }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "aa439684-c5d0-4527-8347-18640ffb0deb",
+      "name": "Respond — Validation Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "profiles",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "=eq",
+              "keyValue": "={{ $('Validate Withdrawal Request').first().json.user_id }}"
+            }
+          ]
+        }
+      },
+      "id": "7f466e81-4d72-4103-b361-d6b4b43b2d8c",
+      "name": "Fetch Wallet Balance",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        480
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const wallet   = $input.first().json;\nconst request  = $('Validate Withdrawal Request').first().json;\n\nconst balance        = Number(wallet.wallet_balance || 0);\nconst amount         = request.amount;\nconst PAYSTACK_FEE   = 50;   // ₦50 flat Paystack transfer fee\nconst total_deducted = amount + PAYSTACK_FEE;\n\nif (!wallet || wallet.id === undefined) {\n  return [{ json: { sufficient: false, reason: 'Wallet not found' } }];\n}\n\nif (balance < total_deducted) {\n  return [{\n    json: {\n      sufficient: false,\n      reason: `Insufficient balance. You need ₦${total_deducted} (₦${amount} + ₦${PAYSTACK_FEE} fee) but your balance is ₦${balance}.`,\n      balance,\n      amount,\n      fee: PAYSTACK_FEE,\n      total_deducted\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    sufficient: true,\n    wallet_id: wallet.id,\n    balance,\n    amount,\n    fee: PAYSTACK_FEE,\n    total_deducted,\n    new_balance: balance - total_deducted\n  }\n}];"
+      },
+      "id": "7e77f88c-6aeb-4085-ba50-b611b6178774",
+      "name": "Check Sufficient Balance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.sufficient }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "2ac1e778-a95b-4f9e-9863-3dceaaa5e6a5",
+      "name": "Sufficient Balance?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        208,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.reason, balance: $json.balance }) }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "id": "4b0fbb29-7699-4a84-a07a-eb6fe7828150",
+      "name": "Respond — Insufficient Balance",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        208,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.paystack.co/transferrecipient",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Validate Withdrawal Request').first().json.user_id && 'sk_test_afd403a3c4b8bb8dbcd61a5a85b473ba33493e6a' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"nuban\",\n  \"name\": \"{{ $('Validate Withdrawal Request').first().json.account_name }}\",\n  \"account_number\": \"{{ $('Validate Withdrawal Request').first().json.account_number }}\",\n  \"bank_code\": \"{{ $('Validate Withdrawal Request').first().json.bank_code }}\",\n  \"currency\": \"NGN\"\n}",
+        "options": {}
+      },
+      "id": "4c1532ca-6217-4bd5-850e-9c0c9abc4180",
+      "name": "Create Paystack Transfer Recipient",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        432,
+        480
+      ],
+      "notes": "Creates a reusable recipient code from Paystack"
+    },
+    {
+      "parameters": {
+        "jsCode": "const recipientData = $input.first().json;\nconst request = $('Validate Withdrawal Request').first().json;\nconst balanceCheck = $('Check Sufficient Balance').first().json;\n\nif (!recipientData.status || !recipientData.data?.recipient_code) {\n  throw new Error('Failed to create Paystack recipient: ' + JSON.stringify(recipientData));\n}\n\nconst reference = `EE_WD_${Date.now()}_${request.user_id.substr(0,8)}`;\n\nreturn [{\n  json: {\n    recipient_code: recipientData.data.recipient_code,\n    recipient_name: recipientData.data.details?.account_name,\n    reference,\n    amount_kobo: request.amount_kobo,\n    amount: request.amount,\n    fee: balanceCheck.fee,\n    total_deducted: balanceCheck.total_deducted,\n    new_balance: balanceCheck.new_balance,\n    narration: request.narration,\n    user_id: request.user_id,\n    wallet_id: balanceCheck.wallet_id\n  }\n}];"
+      },
+      "id": "3c3761b8-a925-4f68-a83e-c6e01a030e34",
+      "name": "Build Transfer Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "wallet_transactions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "reference",
+              "fieldValue": "={{ $json.reference }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $json.amount }}"
+            },
+            {
+              "fieldId": "type",
+              "fieldValue": "withdrawal"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "pending"
+            },
+            {
+              "fieldId": "provider",
+              "fieldValue": "paystack"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify({ fee: $json.fee, narration: $json.narration, recipient_code: $json.recipient_code, wallet_id: $json.wallet_id }) }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "0343fcd4-c456-4f14-9f19-0d1877c9c363",
+      "name": "Log Pending Transaction",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        832,
+        480
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "profiles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Build Transfer Payload').first().json.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "wallet_balance",
+              "fieldValue": "={{ $('Build Transfer Payload').first().json.new_balance }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "4eb1b4ca-b584-4585-af56-99bee9ba4685",
+      "name": "Deduct Wallet Balance",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        480
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.paystack.co/transfer",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer sk_test_afd403a3c4b8bb8dbcd61a5a85b473ba33493e6a"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"source\": \"balance\",\n  \"amount\": {{ $('Build Transfer Payload').first().json.amount_kobo }},\n  \"recipient\": \"{{ $('Build Transfer Payload').first().json.recipient_code }}\",\n  \"reason\": \"{{ $('Build Transfer Payload').first().json.narration }}\",\n  \"reference\": \"{{ $('Build Transfer Payload').first().json.reference }}\"\n}",
+        "options": {}
+      },
+      "id": "ec464fc8-fa94-48ca-98a0-8a74069f2c9f",
+      "name": "Initiate Paystack Transfer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1264,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const transferData = $input.first().json;\nconst payload = $('Build Transfer Payload').first().json;\n\nconst success = transferData.status === true;\nconst transfer_code = transferData.data?.transfer_code || null;\nconst paystack_status = transferData.data?.status || 'unknown';\n\nreturn [{\n  json: {\n    success,\n    transfer_code,\n    paystack_status,\n    reference: payload.reference,\n    user_id: payload.user_id,\n    amount: payload.amount,\n    new_balance: payload.new_balance,\n    message: success\n      ? `Your withdrawal of ₦${payload.amount} is being processed. Ref: ${payload.reference}`\n      : `Transfer initiation failed: ${transferData.message || 'Unknown error'}`,\n    raw: transferData\n  }\n}];"
+      },
+      "id": "d1c8d1e1-2e46-4a35-b237-3cb2a93d1ea7",
+      "name": "Evaluate Transfer Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "7a210501-bc63-4ead-a813-ff245225b776",
+      "name": "Transfer Initiated OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "wallet_transactions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "reference",
+              "condition": "eq",
+              "keyValue": "={{ $('Evaluate Transfer Result').first().json.reference }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "processing"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify({ transfer_code: $('Evaluate Transfer Result').first().json.transfer_code }) }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "b7de55eb-b813-4830-ad3c-b6501f2d5137",
+      "name": "Update TX → Processing",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        336
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "wallet_transactions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "reference",
+              "condition": "eq",
+              "keyValue": "={{ $('Evaluate Transfer Result').first().json.reference }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "failed"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "b170009a-bf82-452e-a35a-3c6a276fe6ec",
+      "name": "Update TX → Failed",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        624
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "profiles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Evaluate Transfer Result').first().json.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "wallet_balance",
+              "fieldValue": "={{ $('Check Sufficient Balance1').first().json.balance }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "1fb6d1f7-96db-42d1-98ab-ae51d117f95b",
+      "name": "Refund Wallet on Failure",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        624
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: $('Evaluate Transfer Result').first().json.message, reference: $('Evaluate Transfer Result').first().json.reference, new_balance: $('Evaluate Transfer Result').first().json.new_balance }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "5c009a84-4c33-4c9c-aad7-60d4a8c50d39",
+      "name": "Respond — Withdrawal Initiated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $('Evaluate Transfer Result').first().json.message, reference: $('Evaluate Transfer Result').first().json.reference }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "1c9bfb4d-3500-48e1-9cf0-809063a8928a",
+      "name": "Respond — Transfer Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2368,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2336,
+        336
+      ],
+      "id": "afc77d1c-8442-46f4-af42-69524222e516",
+      "name": "Send a message",
+      "webhookId": "fe14c723-ed24-412e-a6c0-03004a88119a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "3gQMZnDmezpaqZ6m",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Validate Withdrawal Request').first().json;\nconst transfer = $('Build Transfer Payload').first().json;\n\nconst fmt = v => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(v);\nconst date = new Date().toLocaleString('en-NG', { dateStyle: 'long', timeStyle: 'short' });\n\nconst html = `<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta charset=\"UTF-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/></head>\n<body style=\"margin:0;padding:0;background:#F4F4F4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;\">\n  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#F4F4F4;padding:40px 0;\">\n    <tr><td align=\"center\">\n      <table width=\"560\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#FFFFFF;border-radius:12px;overflow:hidden;\">\n        <tr><td style=\"background:#C8102E;padding:32px 40px;text-align:center;\">\n          <p style=\"margin:0 0 6px;font-size:13px;color:rgba(255,255,255,0.6);letter-spacing:2px;text-transform:uppercase;\">When every second counts</p>\n          <h1 style=\"margin:0;font-size:28px;font-weight:800;color:#FFFFFF;\">Emergency<span style=\"color:#FFB3C1;\">Echo</span></h1>\n        </td></tr>\n        <tr><td style=\"padding:36px 40px 0;text-align:center;\">\n          <div style=\"width:64px;height:64px;border-radius:50%;background:#F3F4F6;border:2px solid #D1D5DB;margin:0 auto 16px;text-align:center;line-height:64px;font-size:28px;\">⏳</div>\n          <p style=\"margin:0 0 4px;font-size:22px;font-weight:800;color:#0D0D0D;\">Withdrawal Processing</p>\n          <p style=\"margin:0;font-size:15px;color:#6B7280;\">Your funds are on the way to your bank account</p>\n        </td></tr>\n        <tr><td style=\"padding:24px 40px;\">\n          <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#F9FAFB;border:1.5px solid #E5E7EB;border-radius:12px;\">\n            <tr><td style=\"padding:24px;text-align:center;\">\n              <p style=\"margin:0 0 4px;font-size:12px;font-weight:600;color:#6B7280;letter-spacing:1.5px;text-transform:uppercase;\">Withdrawal Amount</p>\n              <p style=\"margin:0;font-size:36px;font-weight:800;color:#0D0D0D;\">${fmt(request.amount)}</p>\n            </td></tr>\n          </table>\n        </td></tr>\n        <tr><td style=\"padding:0 40px 24px;\">\n          <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#F9FAFB;border:1px solid #F3F4F6;border-radius:12px;\">\n            <tr><td style=\"padding:16px 20px;border-bottom:1px solid #F3F4F6;\">\n              <p style=\"margin:0 0 2px;font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:1px;\">Bank Details</p>\n              <p style=\"margin:0 0 2px;font-size:13px;font-weight:600;color:#0D0D0D;\">${request.account_name}</p>\n              <p style=\"margin:0;font-size:13px;color:#4B5563;\">${request.account_number}</p>\n            </td></tr>\n            <tr><td style=\"padding:16px 20px;border-bottom:1px solid #F3F4F6;\">\n              <p style=\"margin:0 0 2px;font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:1px;\">Reference</p>\n              <p style=\"margin:0;font-size:13px;font-weight:600;color:#0D0D0D;font-family:'Courier New',monospace;\">${transfer.reference}</p>\n            </td></tr>\n            <tr><td style=\"padding:16px 20px;border-bottom:1px solid #F3F4F6;\">\n              <p style=\"margin:0 0 2px;font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:1px;\">Date & Time</p>\n              <p style=\"margin:0;font-size:13px;font-weight:600;color:#0D0D0D;\">${date}</p>\n            </td></tr>\n            <tr><td style=\"padding:16px 20px;\">\n              <p style=\"margin:0 0 2px;font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:1px;\">New Wallet Balance</p>\n              <p style=\"margin:0;font-size:16px;font-weight:800;color:#C8102E;\">${fmt(transfer.new_balance)}</p>\n            </td></tr>\n          </table>\n        </td></tr>\n        <tr><td style=\"padding:0 40px 32px;text-align:center;\">\n          <p style=\"margin:0;font-size:14px;color:#4B5563;line-height:1.5;\">Transfers usually arrive instantly, but occasionally take a few minutes depending on bank network conditions.</p>\n        </td></tr>\n        <tr><td style=\"background:#F9F8F7;border-top:1px solid #EBEBEB;padding:24px 40px;text-align:center;\">\n          <p style=\"margin:0 0 4px;font-size:12px;color:#A8A49E;\">EmergencyEcho · Yenak Technology Limited · RC No. 8708191</p>\n          <p style=\"margin:0;font-size:11px;color:#C8C6C2;line-height:1.5;\">This is an automated payment receipt. Please keep it for your records.<br/>If you have any issues, contact support@emergencyecho.org.</p>\n        </td></tr>\n      </table>\n    </td></tr>\n  </table>\n</body>\n</html>`;\n\nreturn [{ json: {\n  to:      request.email,\n  subject: `Withdrawal Processing — ${fmt(request.amount)} to your bank`,\n  html\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2128,
+        336
+      ],
+      "id": "77f3069b-8862-408c-b1f4-369ee00ef828",
+      "name": "Build Withdrawal Receipt"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "wallet_transactions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "reference",
+              "condition": "eq",
+              "keyValue": "={{ $('Parse Paystack Event1').first().json.reference }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "success"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "0d82156b-149c-45d6-9871-52e52e60fd51",
+      "name": "Update TX Success",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        368,
+        1328
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "wallet_transactions",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "reference",
+              "condition": "eq",
+              "keyValue": "={{ $('Parse Paystack Event1').first().json.reference }}"
+            }
+          ]
+        }
+      },
+      "id": "05bb4687-5633-4626-8770-1abbd135c6f4",
+      "name": "Fetch Original TX",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        368,
+        1552
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "profiles",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "=eq",
+              "keyValue": "={{ $('Fetch Original TX').first().json.user_id }}"
+            }
+          ]
+        }
+      },
+      "id": "543d3cf4-88cf-4869-b89a-9111c1c0f8d3",
+      "name": "Fetch Wallet for Refund",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        608,
+        1552
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "profiles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Fetch Original TX').first().json.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "wallet_balance",
+              "fieldValue": "={{ parseFloat($json.balance) + parseFloat($('Fetch Original TX').first().json.amount) }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "f194928b-2240-47d3-b4f7-e5f444b184b4",
+      "name": "Process Refund",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        864,
+        1552
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "wallet_transactions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "reference",
+              "condition": "eq",
+              "keyValue": "={{ $('Parse Paystack Event1').first().json.reference }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $('Parse Paystack Event1').first().json.event === 'transfer.failed' ? 'failed' : 'reversed' }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "26549fea-8893-4aca-81ad-9a777936eb00",
+      "name": "Update TX Failed/Reversed",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        1552
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"received\": true }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "124f4f6a-bec8-4fe9-a0e0-f56ac28f09be",
+      "name": "Ack: Refund Processed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        1552
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst event = body.event;\nconst data  = body.data;\n\nif (!event || !data) throw new Error('Invalid Paystack webhook payload');\n\nconst reference  = data.reference  || null;\nconst amountKobo = data.amount     || 0;\nconst amountNGN  = amountKobo / 100;\nconst status     = data.status     || null;\nconst email      = data.customer?.email || data.recipient?.details?.account_number || '';\n\n// Extract user_id\nconst customFields = data.metadata?.custom_fields || [];\nconst userIdField  = customFields.find(f => f.variable_name === 'user_id');\nlet user_id        = userIdField?.value || data.metadata?.user_id || null;\n\nif (!user_id && reference && reference.startsWith('withdraw_')) {\n  const parts = reference.split('_');\n  if (parts.length >= 3) user_id = parts.slice(1, -1).join('_');\n}\n\nconst paidAt = data.paid_at || new Date().toISOString();\n\nreturn [{ json: { event, reference, amountKobo, amountNGN, status, email, user_id, paidAt, rawData: data } }];"
+      },
+      "id": "5e2f38fa-42de-41c3-a869-26225f45853e",
+      "name": "Parse Paystack Event1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "charge.success",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "topup"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "transfer.success",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "withdrawal_success"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "transfer.failed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "withdrawal_failed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "transfer.reversed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "withdrawal_reversed"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "ff3fd192-2e44-4bba-a037-011d7f2b7d00",
+      "name": "Switch: Route Event1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        96,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst paystackSecret = String($env.PAYSTACK_SECRET_KEY || $env.PAYSTACK_LIVE_SECRET_KEY || $env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY || '').trim();\n\nif (!paystackSecret) {\n  throw new Error('Missing PAYSTACK_SECRET_KEY / PAYSTACK_LIVE_SECRET_KEY environment variable.');\n}\n\nconst data = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `https://api.paystack.co/transaction/verify/${ctx.reference}`,\n  headers: { 'Authorization': `Bearer ${paystackSecret}` }\n});\n\nif (!data.status || data.data?.status !== 'success') {\n  throw new Error('Paystack verification failed: ' + JSON.stringify(data));\n}\n\nconst verified = data.data;\nconst walletCreditNGN = verified.metadata?.topup_amount || (verified.amount / 100);\n\nreturn [{ json: {\n  reference:  verified.reference,\n  user_id:    verified.metadata?.user_id || ctx.user_id,\n  email:      verified.customer?.email,\n  amountNGN:  walletCreditNGN,\n  amountKobo: verified.amount,\n  paidAt:     verified.paid_at,\n  verified:   true\n}}];"
+      },
+      "id": "244c34fc-c3d8-473d-bf49-2e4855368e87",
+      "name": "Verify Charge with Paystack1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "profiles",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "=eq",
+              "keyValue": "={{ $json.user_id }}"
+            }
+          ]
+        }
+      },
+      "id": "8ddfc718-4322-4452-85fd-c726011718b6",
+      "name": "Fetch Wallet (Top-up)1",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        608,
+        1088
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const wallet = $input.first().json;\nconst ctx    = $('Verify Charge with Paystack1').first().json;\n\nconst currentBalance = parseFloat(wallet.wallet_balance) || 0;\nconst topupAmount    = parseFloat(ctx.amountNGN);\nconst newBalance     = Math.round((currentBalance + topupAmount) * 100) / 100;\n\nreturn [{ json: {\n  wallet_id:   wallet.id,\n  user_id:     ctx.user_id,\n  reference:   ctx.reference,\n  email:       ctx.email,\n  oldBalance:  currentBalance,\n  topupAmount,\n  newBalance,\n  paidAt:      ctx.paidAt,\n  amountNGN:   ctx.amountNGN\n}}];"
+      },
+      "id": "c81cc2de-397e-471b-82c1-8e8ec6207247",
+      "name": "Calculate New Balance (Top-up)1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "profiles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "wallet_balance",
+              "fieldValue": "={{ $json.newBalance }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "004e8d3e-8f66-484a-836a-19a62ceece63",
+      "name": "Credit Wallet Balance1",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        1088
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "wallet_transactions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "reference",
+              "condition": "eq",
+              "keyValue": "={{ $('Calculate New Balance (Top-up)1').first().json.reference }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "success"
+            },
+            {
+              "fieldId": "paid_at",
+              "fieldValue": "={{ $('Calculate New Balance (Top-up)1').first().json.paidAt }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "e3c7fbbb-414b-4c6b-b066-b014565f9cf5",
+      "name": "Update Topup Transaction Status1",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        1088
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GUdVurOk4enxbmHZ",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ]
+}
+
+

@@ -1,0 +1,1885 @@
+{
+  "name": "EchoHealth — Full Merged Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vapi-unified",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "00af2feb-0c5b-48fa-856b-47e5d47f644b",
+      "name": "Unified VAPI Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1056,
+        176
+      ],
+      "webhookId": "unified-vapi-001",
+      "notes": "Single endpoint for all VAPI tool calls: check_patient | update_patient | save_dmk | start_clerking | submit_answer | complete_clerking | triage_patient"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ee-trigger-triage",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "23c93eff-0ac5-4a5f-820a-c8e326d92220",
+      "name": "EE Trigger Triage Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1056,
+        784
+      ],
+      "webhookId": "ee-triage-wh-001",
+      "notes": "Direct POST from EchoHealth system when a call is accepted. Triggers background AI triage before patient finishes speaking."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vapi-triage",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7f7c1c7d-a9d6-447c-bd74-2dfe80463e3a",
+      "name": "VAPI Triage Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1056,
+        944
+      ],
+      "webhookId": "vapi-triage-wh-001",
+      "notes": "Called by VAPI triage assistant tool during voice call."
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst toolCallList = body?.message?.toolCallList || body?.message?.toolCalls || body?.message?.tool_calls;\nlet toolCallId = body.toolCallId || body.tool_call_id || 'unified-test-001';\nlet toolName = 'unknown';\nlet args = {};\nlet source = body.source || 'chat';\n\nif (Array.isArray(toolCallList) && toolCallList.length > 0) {\n  const first = toolCallList[0];\n  toolCallId = first?.id || first?.toolCallId || toolCallId;\n  toolName = first?.function?.name || first?.name || 'unknown';\n  const rawArgs = first?.function?.arguments ?? first?.arguments ?? {};\n  args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;\n} else {\n  toolName = body.tool || body.toolName || body.tool_name || 'unknown';\n  args = body.args || {};\n  if (body.submission_key) args.submission_key = body.submission_key;\n  if (body.submission_id)  args.submission_id  = body.submission_id;\n  if (body.full_name)      args.full_name      = body.full_name;\n  if (body.update_statement) args.update_statement = body.update_statement;\n  if (body.complaint)      args.complaint      = body.complaint;\n  if (body.session_id)     args.session_id     = body.session_id;\n  if (body.answer)         args.answer         = body.answer;\n  if (body.question_index !== undefined) args.question_index = body.question_index;\n  if (body.symptoms)       args.symptoms       = body.symptoms;\n  if (body.duration)       args.duration       = body.duration;\n  if (body.severity)       args.severity       = body.severity;\n}\nreturn [{ json: { toolName, toolCallId, args, source } }];"
+      },
+      "id": "92a2f4dc-a679-45c6-9242-d748f062ebca",
+      "name": "Parse Unified Tool Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -816,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.toolName }}",
+                    "rightValue": "check_patient",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "check"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.toolName }}",
+                    "rightValue": "update_patient",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "update"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.toolName }}",
+                    "rightValue": "save_dmk",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "save_dmk"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.toolName }}",
+                    "rightValue": "start_clerking",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "start_clerking"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.toolName }}",
+                    "rightValue": "submit_answer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "submit_answer"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.toolName }}",
+                    "rightValue": "complete_clerking",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "complete_clerking"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.toolName }}",
+                    "rightValue": "triage_patient",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "triage"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1b3b9536-0485-4fb9-ad62-a748f0e350d9",
+      "name": "Route Tool Call",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -576,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "patients",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "full_name",
+              "condition": "=eq",
+              "keyValue": "={{ $json.args.full_name }}"
+            }
+          ]
+        }
+      },
+      "id": "f6966bfa-4af1-411b-8459-91512a8213c3",
+      "name": "Check Patient in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst found = allItems.length > 0 && allItems[0].json && allItems[0].json.id !== undefined;\nconst toolCallId = $('Parse Unified Tool Call').first().json.toolCallId;\nconst patientData = found ? allItems[0].json : null;\nconst result = found ? `true|${JSON.stringify(patientData)}` : 'false';\nreturn [{ json: { results: [{ toolCallId, result }] } }];"
+      },
+      "id": "b02dcf1f-e24b-4d7e-868d-9d8499594193",
+      "name": "Build Check Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "patients",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "full_name",
+              "condition": "=eq",
+              "keyValue": "={{ $json.args.full_name }}"
+            }
+          ]
+        }
+      },
+      "id": "23eb28a8-a695-4c7b-951b-df8e56089998",
+      "name": "Fetch Existing Record",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const existing = $input.first().json;\nconst args = $('Parse Unified Tool Call').first().json.args;\nreturn [{ json: { existing_record: existing, update_statement: args.update_statement, full_name: args.full_name, toolCallId: $('Parse Unified Tool Call').first().json.toolCallId } }];"
+      },
+      "id": "19bc36f4-7a53-47e6-8c84-0e47264cf77b",
+      "name": "Prepare AI Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a medical record field mapper.\n\nReturn ONLY raw JSON — the COMPLETE updated patient record after merging the update statement into the existing record.\n\nMERGING RULES:\n- Preserve all existing fields unless explicitly updated.\n- ARRAY fields (conditions, surgeries, drug_allergies, food_allergies, rx_meds, otc_meds, herbal_meds, immunisations, mental_history, cognitive, directives, fam_history, assistive, substance_use, pets_type, pregnancy_complications): keep existing + add new, deduplicate.\n- NOTE fields (cond_other, surg_other, meds_notes, admit_details, transfusion_details, imm_notes, mental_notes, mental_current, dir_notes, fam_history_notes, assistive_notes, substance_details, lifestyle_notes, obgyn_notes): append on new line.\n- SINGLE VALUE fields: replace only if new value maps to a valid enum.\n\nREQUIRED FIELDS: submission_key, full_name, dob, gender.\n\nVALID ENUMS (copy EXACTLY — no extra spaces, preserve em dashes and apostrophes):\ngender: male | female | other | prefer_not\nalcohol: none | occasional | weekly | daily_light | daily_heavy\nsmoking: never | former | light | moderate | heavy\npets: Yes | No\nadmit: Yes | No | Not sure\ntransfusion: Yes | No | Not sure\ndiet: I eat everything — no restrictions | I don't eat meat | I don't eat meat or animal products | I only eat Halal food | I only eat Kosher food | I avoid gluten (wheat, bread, etc.) | Other / special diet\nlanguage: English | Yoruba | Hausa | Igbo | Pidgin | French | Other\nreligion: Christianity | Islam | Traditional | Other | None\nmarital_status: Single | Married | Divorced | Widowed | Separated\nliving_situation: I live alone | With my partner | With my family | With housemates | In a care home or assisted living | I don't have a stable home right now\nec_relationship: Parent | Sibling | Spouse / Partner | Child | Friend | Guardian | Other\noccupation_cat: Healthcare (doctor, nurse, etc.) | Teaching or education | Farming or agriculture | Building or construction | Office or desk job | Driving or transport | Factory or industrial work | I'm a student | Retired | Currently not working | Other\nmental_current: I feel fine | A little low or anxious | Quite low or anxious — it's affecting my life | Very bad — I'm struggling a lot\n\nNo markdown. No code fences. No explanation. Return ONLY the raw JSON object.",
+              "role": "system"
+            },
+            {
+              "content": "=Existing patient record:\n{{ JSON.stringify($('Prepare AI Context').first().json.existing_record) }}\n\nUpdate statement:\n{{ $('Prepare AI Context').first().json.update_statement }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "79046e4e-e9be-4f02-a52a-76629bcdf681",
+      "name": "AI Smart Field Mapper",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        144,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiRaw = $input.first().json.message?.content || $input.first().json.text || $input.first().json.content;\nconst ctx = $('Prepare AI Context').first().json;\nconst existing = $('Fetch Existing Record').first().json;\nlet fullUpdated;\ntry {\n  fullUpdated = JSON.parse(aiRaw.replace(/```json|```/g, '').trim());\n} catch(e) { throw new Error('AI returned invalid JSON: ' + aiRaw); }\nconst arrayFields = ['conditions','surgeries','drug_allergies','food_allergies','rx_meds','otc_meds','herbal_meds','immunisations','mental_history','cognitive','directives','fam_history','assistive','substance_use','pets_type','pregnancy_complications'];\nconst notesFields = ['cond_other','surg_other','meds_notes','admit_details','transfusion_details','imm_notes','mental_notes','mental_current','dir_notes','fam_history_notes','assistive_notes','substance_details','lifestyle_notes','obgyn_notes'];\nconst changedFields = {};\nfor (const key of Object.keys(fullUpdated)) {\n  const oldVal = existing[key];\n  const newVal = fullUpdated[key];\n  if (arrayFields.includes(key)) {\n    const oldArr = Array.isArray(oldVal) ? oldVal : [];\n    const newArr = Array.isArray(newVal) ? newVal : [];\n    const trulyNew = newArr.filter(item => !oldArr.includes(item));\n    if (trulyNew.length > 0) changedFields[key] = [...oldArr, ...trulyNew];\n  } else if (notesFields.includes(key)) {\n    const oldStr = (oldVal || '').trim();\n    const newStr = (newVal || '').trim();\n    if (newStr && newStr !== oldStr && !oldStr.includes(newStr)) changedFields[key] = `${oldStr}\\n${newStr}`.trim();\n  } else {\n    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) changedFields[key] = newVal;\n  }\n}\nreturn [{ json: { changedFields, updatedFields: changedFields, fullName: ctx.full_name, submissionId: existing.submission_key, toolCallId: ctx.toolCallId } }];"
+      },
+      "id": "84a22ec9-46b4-49e1-be68-adbebfc94676",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { changedFields, submissionId, fullName, toolCallId, updatedFields } = $input.first().json;\nconst clean = {};\nfor (const [k, v] of Object.entries(changedFields)) {\n  if (!k.startsWith('_')) clean[k] = typeof v === 'string' ? v.trim() : v;\n}\nreturn [{ json: { ...clean, submission_key: submissionId, _fullName: fullName, _toolCallId: toolCallId, _updatedFields: updatedFields } }];"
+      },
+      "id": "40219e97-b55f-45fb-a816-37ab68c34fdc",
+      "name": "Prepare Supabase Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "patients",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "submission_key",
+              "condition": "eq",
+              "keyValue": "={{ $json.submission_key }}"
+            }
+          ]
+        },
+        "dataToSend": "autoMapInputData",
+        "inputsToIgnore": "_fullName,_toolCallId,_updatedFields"
+      },
+      "id": "0da23659-713b-473c-8739-91d69f9e968d",
+      "name": "Update Patient in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        864,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const toolCallId = $('Parse AI Response').first().json.toolCallId;\nconst fieldNames = Object.keys($('Parse AI Response').first().json.updatedFields).join(', ');\nreturn [{ json: { results: [{ toolCallId, result: `Your medical profile has been updated. Fields changed: ${fieldNames}. Is there anything else you would like to update?` }] } }];"
+      },
+      "id": "1ecf327e-c8c3-4e14-ada4-18650f99e412",
+      "name": "Build Update Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Parse Unified Tool Call').first().json;\nconst args = body.args;\nfunction generateHex(n) { const c='0123456789abcdef'; let h=''; for(let i=0;i<n;i++) h+=c[Math.floor(Math.random()*16)]; return h; }\nconst submission_key = `EE_${generateHex(32)}`;\nconst user_id = `${generateHex(8)}-${generateHex(4)}-4${generateHex(3)}-${['8','9','a','b'][Math.floor(Math.random()*4)]}${generateHex(3)}-${generateHex(12)}`;\nconst flatArgs = { ...args, submission_key, user_id };\nfor (const [key, val] of Object.entries(flatArgs)) {\n  if (Array.isArray(val)) flatArgs[key] = JSON.stringify(val);\n  else if (val === null || val === undefined) flatArgs[key] = null;\n}\nreturn [{ json: flatArgs }];"
+      },
+      "id": "4420a384-6c37-4b20-9e0b-af2c079227cc",
+      "name": "Generate New EchoID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "patients",
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "e157f654-30b3-472b-b066-d43f557cc422",
+      "name": "Save Patient to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const toolCallId = $('Parse Unified Tool Call').first().json.toolCallId;\nreturn [{ json: { results: [{ toolCallId, result: 'Patient Digital Medical Kit saved successfully.' }] } }];"
+      },
+      "id": "5c0355c5-1f54-4d21-ba33-dd75ae7504d4",
+      "name": "Build Save Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const KNOWLEDGE_BASE={\"Acid Reflux\":{\"s\":[\"Heartburn\",\"Chest Pain\",\"Difficulty Swallowing\"],\"q\":[{\"text\":\"Do you have burning in your chest after eating\",\"priority\":5},{\"text\":\"Does it get worse when lying down\",\"priority\":10},{\"text\":\"Do you have sour taste in your mouth\",\"priority\":15}],\"r\":[\"Obesity\",\"Large meals before bedtime\",\"Spicy food intake\"]},\"Anemia\":{\"s\":[\"Fatigue\",\"Paleness\",\"Weakness\",\"Shortness of Breath\"],\"q\":[{\"text\":\"Do you feel dizzy when standing up?\",\"priority\":2},{\"text\":\"Do you feel unusually tired on small exertion?\",\"priority\":3},{\"text\":\"Are your palms or eyelids pale?\",\"priority\":4}],\"r\":[\"Heavy menstrual bleeding\",\"Poor diet\",\"Chronic illness\"]},\"Angina\":{\"s\":[\"Chest Pain\",\"Chest Heaviness\",\"Shortness of Breath\",\"Palpitations\"],\"q\":[{\"text\":\"Does the pain start when you walk or climb stairs\",\"priority\":5},{\"text\":\"Does the pain get better when you rest\",\"priority\":10},{\"text\":\"Does the pain feel like tightness\",\"priority\":15}],\"r\":[\"High blood pressure\",\"High cholesterol\",\"Smoking\"]},\"Appendicitis\":{\"s\":[\"Abdominal Pain\",\"Fever\",\"Nausea\",\"Vomiting\"],\"q\":[{\"text\":\"Is the pain strongest in the right lower abdomen?\",\"priority\":2},{\"text\":\"Did the pain start near the navel and move downward?\",\"priority\":3},{\"text\":\"Is the pain worsening when you walk or cough?\",\"priority\":4}],\"r\":[\"Recent stomach infection\",\"Low fiber diet\"]},\"Asthma\":{\"s\":[\"Wheezing\",\"Cough\",\"Shortness of Breath\",\"Chest Tightness\"],\"q\":[{\"text\":\"Are you wheezing when breathing out?\",\"priority\":2},{\"text\":\"Do you feel chest tightness?\",\"priority\":3},{\"text\":\"Is your shortness of breath worse at night?\",\"priority\":4}],\"r\":[\"Dust exposure\",\"Cold air\",\"Strong smells\"]},\"COPD Exacerbation\":{\"s\":[\"Cough\",\"Shortness of Breath\",\"Wheezing\"],\"q\":[{\"text\":\"Are you more breathless than usual?\",\"priority\":2},{\"text\":\"Is your sputum thicker than normal?\",\"priority\":4},{\"text\":\"Do you feel chest tightness?\",\"priority\":5}],\"r\":[\"Smoking\",\"Chest infection\",\"Cold weather\"]},\"Cholecystitis\":{\"s\":[\"Abdominal Pain\",\"Nausea\",\"Vomiting\",\"Fever\"],\"q\":[{\"text\":\"Is the pain on the right upper abdomen?\",\"priority\":2},{\"text\":\"Did the pain start after a fatty meal?\",\"priority\":4},{\"text\":\"Does deep breathing worsen the pain?\",\"priority\":6}],\"r\":[\"High-fat diet\",\"Female gender\"]},\"Depression\":{\"s\":[\"Depression\",\"Insomnia\",\"Loss of Appetite\",\"Fatigue\"],\"q\":[{\"text\":\"Are you feeling persistently sad?\",\"priority\":3},{\"text\":\"Have you lost interest in things you used to enjoy?\",\"priority\":4},{\"text\":\"Are your sleep patterns disturbed?\",\"priority\":5}],\"r\":[\"Stress\",\"Family history\"]},\"Diabetes DKA\":{\"s\":[\"Nausea\",\"Vomiting\",\"Abdominal Pain\"],\"q\":[{\"text\":\"Are you extremely thirsty?\",\"priority\":2},{\"text\":\"Are you urinating more than usual?\",\"priority\":3},{\"text\":\"Is your breathing unusually deep?\",\"priority\":6}],\"r\":[\"Missed insulin doses\",\"Infection\"]},\"Diarrhea\":{\"s\":[\"Diarrhea\",\"Abdominal Cramping\",\"Nausea\"],\"q\":[{\"text\":\"Do you pass stool more often than usual\",\"priority\":5},{\"text\":\"Is your stool watery\",\"priority\":10},{\"text\":\"Do you feel dehydrated or thirsty\",\"priority\":15}],\"r\":[\"Contaminated food\",\"Recent travel\"]},\"GERD\":{\"s\":[\"Heartburn\",\"Chest Pain\",\"Difficulty Swallowing\"],\"q\":[{\"text\":\"Do you feel a burning sensation rising into your chest?\",\"priority\":2},{\"text\":\"Does lying down worsen the discomfort?\",\"priority\":4},{\"text\":\"Does spicy or oily food worsen your symptoms?\",\"priority\":15}],\"r\":[\"Obesity\",\"Spicy meals\"]},\"Gastroenteritis\":{\"s\":[\"Diarrhea\",\"Vomiting\",\"Abdominal Cramping\",\"Fever\"],\"q\":[{\"text\":\"Is your stool watery?\",\"priority\":2},{\"text\":\"Has anyone around you had similar symptoms?\",\"priority\":4},{\"text\":\"Do you feel nauseous or vomit\",\"priority\":10}],\"r\":[\"Contaminated water\",\"Food poisoning exposure\"]},\"Heart Failure\":{\"s\":[\"Shortness of Breath\",\"Edema\",\"Fatigue\",\"Palpitations\"],\"q\":[{\"text\":\"Do you wake up breathless at night?\",\"priority\":2},{\"text\":\"Do your ankles swell in the evening?\",\"priority\":3},{\"text\":\"Do you feel breathless when lying flat?\",\"priority\":15}],\"r\":[\"Hypertension\",\"Heart disease history\"]},\"Hepatitis\":{\"s\":[\"Jaundice\",\"Fever\",\"Abdominal Pain\",\"Dark Urine\"],\"q\":[{\"text\":\"Are your eyes or urine darker than usual?\",\"priority\":2},{\"text\":\"Do you feel severe fatigue?\",\"priority\":5},{\"text\":\"Is your urine darker than usual?\",\"priority\":10}],\"r\":[\"Contaminated water\",\"Unsafe injections\"]},\"Hypertensive Crisis\":{\"s\":[\"High Blood Pressure\",\"Severe Headache\",\"Chest Pain\"],\"q\":[{\"text\":\"Is the headache very sudden and very bad\",\"priority\":5},{\"text\":\"Do you have blurry vision\",\"priority\":10},{\"text\":\"Are you having trouble speaking or thinking clearly\",\"priority\":15}],\"r\":[\"Missed hypertension meds\",\"Stress\"]},\"Kidney Stones\":{\"s\":[\"Flank Pain\",\"Hematuria\",\"Nausea\",\"Vomiting\"],\"q\":[{\"text\":\"Is the pain coming in waves and very sharp?\",\"priority\":2},{\"text\":\"Does the pain radiate to your groin?\",\"priority\":3},{\"text\":\"Is there blood in your urine?\",\"priority\":4}],\"r\":[\"Low water intake\",\"High salt diet\"]},\"Malaria\":{\"s\":[\"Fever\",\"Chills\",\"Sweating\",\"Joint Pain\"],\"q\":[{\"text\":\"Do you have fever or chills\",\"priority\":5},{\"text\":\"Do you feel very weak or tired\",\"priority\":10},{\"text\":\"Do you have headache or body pain\",\"priority\":15}],\"r\":[\"Mosquito exposure\",\"Living in endemic region\"]},\"Meningitis\":{\"s\":[\"Fever\",\"Severe Headache\",\"Neck Stiffness\",\"Confusion\",\"Rash\"],\"q\":[{\"text\":\"Do you have fever with headache\",\"priority\":5},{\"text\":\"Is your neck stiff or painful to move\",\"priority\":10},{\"text\":\"Does bright light make the headache worse\",\"priority\":15}],\"r\":[\"Close contact in crowded settings\",\"No vaccination\"]},\"Migraine\":{\"s\":[\"Headache with Aura\",\"Blurred Vision\",\"Nausea\",\"Photophobia\"],\"q\":[{\"text\":\"Is your headache throbbing on one side?\",\"priority\":2},{\"text\":\"Do bright lights worsen your headache?\",\"priority\":3},{\"text\":\"Is the headache throbbing or pounding\",\"priority\":5}],\"r\":[\"Stress\",\"Lack of sleep\"]},\"Myocardial Infarction\":{\"s\":[\"Chest Pain\",\"Shortness of Breath\",\"Palpitations\",\"Sweating Abnormally\",\"Syncope\"],\"q\":[{\"text\":\"Is the chest pain heavy or tight?\",\"priority\":2},{\"text\":\"Does the pain spread to your arm or jaw?\",\"priority\":3},{\"text\":\"Is the chest pain heavy or pressing\",\"priority\":5},{\"text\":\"Does the pain move to your arm neck or jaw\",\"priority\":10},{\"text\":\"Do you feel sweaty sick or weak with the pain\",\"priority\":15}],\"r\":[\"Smoking\",\"High cholesterol\"]},\"Pancreatitis\":{\"s\":[\"Severe Abdominal Pain\",\"Nausea\",\"Vomiting\",\"Fever\",\"Jaundice\"],\"q\":[{\"text\":\"Is the pain radiating to your back?\",\"priority\":2},{\"text\":\"Does leaning forward reduce your pain?\",\"priority\":3},{\"text\":\"Do you drink alcohol frequently?\",\"priority\":6},{\"text\":\"Does the pain go to your back\",\"priority\":10}],\"r\":[\"Alcohol intake\",\"Gallstones\"]},\"Pneumonia\":{\"s\":[\"Cough\",\"Fever\",\"Shortness of Breath\",\"Chest Pain\",\"Malaise\"],\"q\":[{\"text\":\"Do you have a cough with fever?\",\"priority\":2},{\"text\":\"Is your cough producing yellow or green sputum?\",\"priority\":4},{\"text\":\"Do you cough up yellow or green sputum?\",\"priority\":10}],\"r\":[\"Cold exposure\",\"Smoking\"]},\"Pyelonephritis\":{\"s\":[\"Flank Pain\",\"Fever\",\"Urinary Frequency\",\"Nausea\"],\"q\":[{\"text\":\"Do you have flank or side pain?\",\"priority\":2},{\"text\":\"Do you have fever along with urinary pain?\",\"priority\":3},{\"text\":\"Do you feel chills?\",\"priority\":6}],\"r\":[\"UTI history\",\"Dehydration\"]},\"Stroke\":{\"s\":[\"Speech Difficulty\",\"Facial Drooping\",\"Loss of Consciousness\"],\"q\":[{\"text\":\"Is one side of your body weaker?\",\"priority\":5},{\"text\":\"Are you having difficulty speaking?\",\"priority\":5},{\"text\":\"Is one side of your face drooping\",\"priority\":15}],\"r\":[\"High blood pressure\",\"Smoking\"]},\"Tuberculosis\":{\"s\":[\"Cough\",\"Fever\",\"Night Sweats\",\"Weight Loss\"],\"q\":[],\"r\":[\"Crowded living\",\"Close contact\"]},\"Typhoid\":{\"s\":[\"Fever\",\"Headache\",\"Abdominal Pain\",\"Diarrhea\"],\"q\":[{\"text\":\"Do you have fever that comes and goes\",\"priority\":5},{\"text\":\"Do you feel weak or tired\",\"priority\":10},{\"text\":\"Do you have stomach pain or discomfort\",\"priority\":15}],\"r\":[\"Contaminated water\",\"Poor sanitation\"]},\"UTI\":{\"s\":[\"Burning Urination\",\"Urinary Frequency\",\"Urinary Urgency\",\"Hematuria\"],\"q\":[{\"text\":\"Do you feel burning when urinating?\",\"priority\":2},{\"text\":\"Are you urinating more frequently?\",\"priority\":4},{\"text\":\"Is your urine cloudy or smelly\",\"priority\":15}],\"r\":[\"Poor hydration\",\"Dirty toilet exposure\"]}};\nconst SYMPTOM_INDEX={\"Heartburn\":[\"Acid Reflux\",\"GERD\"],\"Chest Pain\":[\"Acid Reflux\",\"Angina\",\"GERD\",\"Hypertensive Crisis\",\"Myocardial Infarction\",\"Pneumonia\"],\"Wheezing\":[\"Asthma\",\"COPD Exacerbation\"],\"Shortness of Breath\":[\"Anemia\",\"Angina\",\"Asthma\",\"COPD Exacerbation\",\"Heart Failure\",\"Myocardial Infarction\",\"Pneumonia\"],\"Fatigue\":[\"Anemia\",\"Depression\",\"Heart Failure\"],\"Abdominal Pain\":[\"Appendicitis\",\"Cholecystitis\",\"Diabetes DKA\",\"Hepatitis\",\"Pancreatitis\",\"Typhoid\"],\"Fever\":[\"Appendicitis\",\"Cholecystitis\",\"Gastroenteritis\",\"Hepatitis\",\"Malaria\",\"Meningitis\",\"Pneumonia\",\"Pyelonephritis\",\"Tuberculosis\",\"Typhoid\"],\"Nausea\":[\"Appendicitis\",\"Cholecystitis\",\"Diabetes DKA\",\"Diarrhea\",\"Gastroenteritis\",\"Kidney Stones\",\"Migraine\",\"Pancreatitis\",\"Pyelonephritis\"],\"Vomiting\":[\"Appendicitis\",\"Cholecystitis\",\"Gastroenteritis\",\"Kidney Stones\",\"Pancreatitis\"],\"Cough\":[\"Asthma\",\"COPD Exacerbation\",\"Pneumonia\",\"Tuberculosis\"],\"Diarrhea\":[\"Diarrhea\",\"Gastroenteritis\"],\"Flank Pain\":[\"Kidney Stones\",\"Pyelonephritis\"],\"High Blood Pressure\":[\"Hypertensive Crisis\"],\"Headache\":[\"Hypertensive Crisis\",\"Meningitis\",\"Migraine\",\"Typhoid\"],\"Jaundice\":[\"Hepatitis\",\"Pancreatitis\"],\"Palpitations\":[\"Angina\",\"Heart Failure\",\"Myocardial Infarction\"],\"Severe Headache\":[\"Hypertensive Crisis\",\"Meningitis\"],\"Speech Difficulty\":[\"Stroke\"],\"Facial Drooping\":[\"Stroke\"],\"Sweating Abnormally\":[\"Myocardial Infarction\"],\"Syncope\":[\"Myocardial Infarction\"],\"Burning Urination\":[\"UTI\"],\"Urinary Frequency\":[\"Pyelonephritis\",\"UTI\"],\"Night Sweats\":[\"Tuberculosis\"],\"Weight Loss\":[\"Tuberculosis\"],\"Chills\":[\"Malaria\"],\"Joint Pain\":[\"Malaria\"],\"Neck Stiffness\":[\"Meningitis\"],\"Edema\":[\"Heart Failure\"],\"Hematuria\":[\"Kidney Stones\",\"UTI\"],\"Dark Urine\":[\"Hepatitis\"],\"Chest Tightness\":[\"Asthma\",\"COPD Exacerbation\"],\"Chest Heaviness\":[\"Angina\"],\"Severe Abdominal Pain\":[\"Pancreatitis\"],\"Headache with Aura\":[\"Migraine\"],\"Blurred Vision\":[\"Migraine\"],\"Photophobia\":[\"Migraine\"],\"Loss of Consciousness\":[\"Stroke\"],\"Confusion\":[\"Meningitis\"],\"Rash\":[\"Meningitis\"],\"Malaise\":[\"Pneumonia\"],\"Depression\":[\"Depression\"],\"Insomnia\":[\"Depression\"],\"Loss of Appetite\":[\"Depression\"]};\nconst parsed=$('Parse Unified Tool Call').first().json;\nconst args=parsed.args;\nconst complaint=(args.complaint||'').toLowerCase();\nconst submission_key=args.submission_key;\nif(!submission_key) throw new Error('Missing submission_key');\nif(!complaint) throw new Error('Missing complaint');\nconst matchedSymptoms=[];\nfor(const symptom of Object.keys(SYMPTOM_INDEX)){const sl=symptom.toLowerCase();if(complaint.includes(sl)||sl.split(' ').some(w=>w.length>4&&complaint.includes(w)))matchedSymptoms.push(symptom);}\nconst diseaseScores={};\nfor(const s of matchedSymptoms)for(const d of(SYMPTOM_INDEX[s]||[])){diseaseScores[d]=(diseaseScores[d]||0)+1;}\nconst topDiseases=Object.entries(diseaseScores).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([d])=>d);\nconst seenQ=new Set();const allQ=[];\nconst stdQ=[{text:'Where exactly is the pain or discomfort?',priority:0,category:'location'},{text:'When did this start, and did it come on suddenly or gradually?',priority:1,category:'onset'},{text:'How would you describe it — sharp, dull, burning, pressure, or something else?',priority:2,category:'character'},{text:'Does it spread or move anywhere else?',priority:3,category:'radiation'},{text:'On a scale of 1 to 10, how severe is it right now?',priority:4,category:'severity'},{text:'Does anything make it better or worse?',priority:5,category:'modifying'},{text:'Have you had any fever, chills, nausea, or vomiting?',priority:6,category:'associated'}];\nfor(const q of stdQ){if(!seenQ.has(q.text)){seenQ.add(q.text);allQ.push({text:q.text,priority:q.priority,source:'standard',disease:null});}}\nfor(const disease of topDiseases){const entry=KNOWLEDGE_BASE[disease];if(!entry)continue;for(const q of(entry.q||[])){if(!seenQ.has(q.text)){seenQ.add(q.text);allQ.push({text:q.text,priority:q.priority+10,source:'disease',disease});}}}\nallQ.sort((a,b)=>a.priority-b.priority);\nconst finalQ=allQ.slice(0,15);\nconst rf=[];const seenRF=new Set();\nfor(const d of topDiseases)for(const r of(KNOWLEDGE_BASE[d]?.r||[])){if(!seenRF.has(r)){seenRF.add(r);rf.push(r);}}\nreturn [{json:{submission_key,complaint:args.complaint,matched_symptoms:matchedSymptoms,candidate_diseases:topDiseases,risk_factors:rf,questions:finalQ,total_questions:finalQ.length,current_question_index:0,first_question:finalQ[0]?.text||'Can you describe what you are feeling?',toolCallId:parsed.toolCallId}}];"
+      },
+      "id": "b8ed70be-5618-4ec8-b245-6b22cb75c6e9",
+      "name": "Match Symptoms & Build Question Set",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "clerking_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "complaint",
+              "fieldValue": "={{ $json.complaint }}"
+            },
+            {
+              "fieldId": "matched_symptoms",
+              "fieldValue": "={{ JSON.stringify($json.matched_symptoms) }}"
+            },
+            {
+              "fieldId": "candidate_diseases",
+              "fieldValue": "={{ JSON.stringify($json.candidate_diseases) }}"
+            },
+            {
+              "fieldId": "risk_factors",
+              "fieldValue": "={{ JSON.stringify($json.risk_factors) }}"
+            },
+            {
+              "fieldId": "questions",
+              "fieldValue": "={{ JSON.stringify($json.questions) }}"
+            },
+            {
+              "fieldId": "answers",
+              "fieldValue": "=[]"
+            },
+            {
+              "fieldId": "current_index",
+              "fieldValue": "=0"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "in_progress"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "a90ce127-70bb-4a11-86c6-25f971390f46",
+      "name": "Save Clerking Session",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session=$('Match Symptoms & Build Question Set').first().json;\nconst dbRow=$input.first().json;\nconst sessionId=dbRow.id||dbRow.session_id||session.submission_key;\nconst message=`Thank you. I have a few questions to better understand what you're experiencing. I'll ask up to ${session.total_questions} questions. First question: ${session.first_question}`;\nreturn [{json:{results:[{toolCallId:session.toolCallId,result:JSON.stringify({session_id:sessionId,question_index:0,question:session.first_question,total_questions:session.total_questions,message})}]}}];"
+      },
+      "id": "42a6fa8e-d005-4280-b2ba-e1e6512d834b",
+      "name": "Build First Question Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "clerking_sessions",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "=eq",
+              "keyValue": "={{ $json.args.session_id }}"
+            }
+          ]
+        }
+      },
+      "id": "7c77b76a-93a0-4986-8ebb-422dddafc3ae",
+      "name": "Load Clerking Session",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session=$input.first().json;\nconst parsed=$('Parse Unified Tool Call').first().json;\nconst args=parsed.args;\nconst questions=typeof session.questions==='string'?JSON.parse(session.questions):(session.questions||[]);\nconst answers=typeof session.answers==='string'?JSON.parse(session.answers):(session.answers||[]);\nconst currentIndex=session.current_index||0;\nconst currentQuestion=questions[currentIndex];\nanswers.push({index:currentIndex,question:currentQuestion?.text||'',answer:args.answer,disease:currentQuestion?.disease||null,timestamp:new Date().toISOString()});\nconst nextIndex=currentIndex+1;\nconst hasMore=nextIndex<questions.length;\nreturn [{json:{session_id:session.id,submission_key:session.submission_key,questions,answers,current_index:currentIndex,next_index:nextIndex,has_more:hasMore,next_question:hasMore?questions[nextIndex]:null,total_questions:questions.length,complaint:session.complaint,candidate_diseases:typeof session.candidate_diseases==='string'?JSON.parse(session.candidate_diseases):(session.candidate_diseases||[]),matched_symptoms:typeof session.matched_symptoms==='string'?JSON.parse(session.matched_symptoms):(session.matched_symptoms||[]),risk_factors:typeof session.risk_factors==='string'?JSON.parse(session.risk_factors):(session.risk_factors||[]),toolCallId:parsed.toolCallId}}];"
+      },
+      "id": "fe40744b-d875-4b99-b300-1c38fb9d0451",
+      "name": "Record Answer & Advance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "clerking_sessions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.session_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "answers",
+              "fieldValue": "={{ JSON.stringify($json.answers) }}"
+            },
+            {
+              "fieldId": "current_index",
+              "fieldValue": "={{ $json.next_index }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.has_more ? 'in_progress' : 'questions_complete' }}"
+            }
+          ]
+        }
+      },
+      "id": "2645f421-60bd-41bc-84b8-3383e4d732b0",
+      "name": "Update Session",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        144,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Record Answer & Advance').first().json.has_more }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "d1e826c1-5ab1-450f-aca7-f8b8be2a04e8",
+      "name": "Has More Questions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        384,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state=$('Record Answer & Advance').first().json;\nconst answered=state.answers.length;\nconst message=`Question ${answered+1} of ${state.total_questions}: ${state.next_question.text}`;\nreturn [{json:{results:[{toolCallId:state.toolCallId,result:JSON.stringify({session_id:state.session_id,question_index:state.next_index,question:state.next_question.text,answered_so_far:answered,total_questions:state.total_questions,message})}]}}];"
+      },
+      "id": "73dab1f3-14e9-4c47-9cc2-55bc09a4fe47",
+      "name": "Build Next Question Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state=$('Record Answer & Advance').first().json;\nreturn [{json:{results:[{toolCallId:state.toolCallId,result:JSON.stringify({session_id:state.session_id,status:'questions_complete',total_answered:state.answers.length,message:\"Thank you for answering all my questions. I now have a clear picture of your symptoms. Please hold for a moment while I prepare your information for the clinical team.\"})}]}}];"
+      },
+      "id": "afac6eaa-4fd2-40f8-a70d-160f478c7dd2",
+      "name": "Build Questions Done Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "clerking_sessions",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "=eq",
+              "keyValue": "={{ $json.args.session_id }}"
+            }
+          ]
+        }
+      },
+      "id": "094572b6-c99b-4029-8048-86cd9daa2123",
+      "name": "Load Session For Summary",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session=$input.first().json;\nconst parsed=$('Parse Unified Tool Call').first().json;\nconst questions=typeof session.questions==='string'?JSON.parse(session.questions):(session.questions||[]);\nconst answers=typeof session.answers==='string'?JSON.parse(session.answers):(session.answers||[]);\nconst candidates=typeof session.candidate_diseases==='string'?JSON.parse(session.candidate_diseases):(session.candidate_diseases||[]);\nconst symptoms=typeof session.matched_symptoms==='string'?JSON.parse(session.matched_symptoms):(session.matched_symptoms||[]);\nconst risks=typeof session.risk_factors==='string'?JSON.parse(session.risk_factors):(session.risk_factors||[]);\nconst qaLines=answers.map((a,i)=>`Q${i+1} [${a.disease||'standard'}]: ${a.question}\\nA: ${a.answer}`).join('\\n\\n');\nreturn [{json:{session_id:session.id,submission_key:session.submission_key,complaint:session.complaint,candidate_diseases:candidates,matched_symptoms:symptoms,risk_factors:risks,qa_transcript:qaLines,total_answered:answers.length,toolCallId:parsed.toolCallId}}];"
+      },
+      "id": "751022d8-945e-439f-a42b-8cca1923cbae",
+      "name": "Prepare Summary Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a senior clinical AI assistant generating structured pre-consultation summaries for doctors.\n\nYou will be given:\n- Patient's presenting complaint\n- Candidate diagnoses identified by symptom matching\n- Matched symptoms\n- Risk factors\n- A full Q&A transcript from a voice-based clinical interview\n\nGenerate a structured clinical clerking summary in the following JSON format ONLY. No markdown. No code fences. Raw JSON only.\n\n{\n  \"presenting_complaint\": \"One sentence summary of what the patient reported\",\n  \"history_of_presenting_complaint\": \"2-4 sentence narrative covering onset, character, severity, radiation, modifying factors, associated symptoms — drawn from the Q&A answers\",\n  \"positive_findings\": [\"list of clinically significant positive responses from Q&A\"],\n  \"negative_findings\": [\"list of clinically significant negative responses from Q&A\"],\n  \"candidate_diagnoses\": [\"ordered list of differential diagnoses based on symptoms and answers\"],\n  \"risk_factors_present\": [\"risk factors relevant to the candidate diagnoses\"],\n  \"recommended_followup_questions\": [\"2-4 questions the clinician should ask that were not covered\"],\n  \"urgency_flag\": \"ROUTINE | URGENT | CRITICAL\",\n  \"urgency_reason\": \"one sentence explaining the urgency classification\",\n  \"clinical_narrative\": \"A 3-5 sentence structured clinical paragraph suitable for a doctor's notes, written in third person (e.g. 'The patient presents with...')\",\n  \"severity_score\": <integer 1-10>\n}",
+              "role": "system"
+            },
+            {
+              "content": "=Presenting complaint: {{ $json.complaint }}\n\nCandidate diagnoses: {{ $json.candidate_diseases.join(', ') }}\n\nMatched symptoms: {{ $json.matched_symptoms.join(', ') }}\n\nRisk factors: {{ $json.risk_factors.join(', ') }}\n\nQ&A Transcript:\n{{ $json.qa_transcript }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6555a913-8766-4d6f-9978-96cbfba9c041",
+      "name": "AI Clinical Summary",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        144,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiRaw=$input.first().json.message?.content||$input.first().json.text||$input.first().json.content;\nconst ctx=$('Prepare Summary Context').first().json;\nlet summary;\ntry{\n  summary=JSON.parse(aiRaw.replace(/```json|```/g,'').trim());\n}catch(e){throw new Error('AI summary returned invalid JSON: '+aiRaw);}\nreturn [{json:{session_id:ctx.session_id,submission_key:ctx.submission_key,summary,toolCallId:ctx.toolCallId}}];"
+      },
+      "id": "13467c6c-6a95-4dbd-b87e-65952d0dcb86",
+      "name": "Parse Clinical Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "clerking_sessions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.session_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "summary",
+              "fieldValue": "={{ JSON.stringify($json.summary) }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "summary_ready"
+            },
+            {
+              "fieldId": "urgency_flag",
+              "fieldValue": "={{ $json.summary.urgency_flag }}"
+            },
+            {
+              "fieldId": "severity_score",
+              "fieldValue": "={{ $json.summary.severity_score }}"
+            },
+            {
+              "fieldId": "completed_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "fa55fa89-b172-4a0e-a292-a7e41c8ea239",
+      "name": "Save Summary to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        624,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=YOUR_VERCEL_URL/api/clerking-brief",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "YOUR_N8N_SECRET_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session_id: $('Parse Clinical Summary').first().json.session_id, submission_key: $('Parse Clinical Summary').first().json.submission_key, summary: $('Parse Clinical Summary').first().json.summary }) }}",
+        "options": {}
+      },
+      "id": "7074c0de-a49b-460b-9577-691c2f8e0fa7",
+      "name": "Trigger Vercel Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        864,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx=$('Parse Clinical Summary').first().json;\nconst s=ctx.summary;\nreturn [{json:{results:[{toolCallId:ctx.toolCallId,result:JSON.stringify({status:'clerking_complete',urgency:s.urgency_flag,severity_score:s.severity_score,presenting_complaint:s.presenting_complaint,candidate_diagnoses:s.candidate_diagnoses,message:`Clerking complete. Urgency: ${s.urgency_flag}. Severity: ${s.severity_score}/10. The clinical summary has been sent to the care team. ${s.urgency_flag==='CRITICAL'?'This patient requires IMMEDIATE attention.':s.urgency_flag==='URGENT'?'This patient should be seen promptly.':'The patient will be seen in order of queue.'}`})}]}}];"
+      },
+      "id": "ac7e320a-b590-4a12-918f-8edd228c7a9d",
+      "name": "Build Clerking Complete Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "c4be5df2-cb55-485a-a6ea-e2057f400caf",
+      "name": "Respond to VAPI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        176
+      ],
+      "notes": "Single respond node — all VAPI branches funnel their final response here"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputs = $input.all();\nconst body = inputs[0]?.json?.body || inputs[0]?.json || {};\nconst source = body.source || (body.call_id !== undefined ? 'ee' : 'vapi');\n\nif (source === 'ee') {\n  return [{json:{source:'ee',full_name:body.full_name||body.patient_name||'Unknown',submission_key:body.submission_key||body.echo_id||null,complaint:body.complaint||body.chief_complaint||'',symptoms:body.symptoms||[],duration:body.duration||null,severity:body.severity||null,call_id:body.call_id||null,priority_hint:body.priority||null,toolCallId:'ee-'+Date.now()}}];\n} else if (source === 'chat') {\n  const args = body.args || body;\n  return [{json:{\n    source: 'chat',\n    full_name: args.full_name || body.full_name || 'Unknown',\n    submission_key: args.submission_key || body.submission_key || null,\n    complaint: args.complaint || body.complaint || '',\n    symptoms: args.symptoms || body.symptoms || [],\n    duration: args.duration || body.duration || null,\n    severity: args.severity || body.severity || null,\n    call_id: null,\n    priority_hint: null,\n    toolCallId: body.toolCallId || 'chat-triage-'+Date.now()\n  }}];\n} else {\n  const toolCallList=body?.message?.toolCallList||body?.message?.toolCalls||body?.message?.tool_calls||[];\n  const first=Array.isArray(toolCallList)&&toolCallList.length>0?toolCallList[0]:null;\n  const toolCallId=first?.id||first?.toolCallId||body.toolCallId||'vapi-triage-'+Date.now();\n  const rawArgs=first?.function?.arguments??first?.arguments??body.args??{};\n  const args=typeof rawArgs==='string'?JSON.parse(rawArgs):rawArgs;\n  return [{json:{source:'vapi',full_name:args.full_name||'Unknown',submission_key:args.submission_key||null,complaint:args.complaint||'',symptoms:args.symptoms||[],duration:args.duration||null,severity:args.severity||null,call_id:null,priority_hint:null,toolCallId}}];\n}"
+      },
+      "id": "deaad381-5e6b-46cb-9c3e-74f2ff4492ad",
+      "name": "Merge Triage Entry Points",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -816,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.source }}",
+              "rightValue": "ee",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "8abbd168-1942-4f6e-908d-ab092cc08531",
+      "name": "Is EE Direct Trigger?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a medical triage pre-classifier. Based on the patient's complaint and available data, respond with EXACTLY ONE WORD — your urgency classification:\n\nCRITICAL — life-threatening, needs immediate intervention (chest pain, stroke symptoms, severe breathing difficulty, loss of consciousness, major trauma)\nURGENT — serious but not immediately life-threatening, needs to be seen within the hour\nPRIORITY — moderate concern, should be seen today\nROUTINE — non-urgent, standard queue\n\nRespond with ONLY the single word. No punctuation. No explanation.",
+              "role": "system"
+            },
+            {
+              "content": "=Patient complaint: {{ $json.complaint }}\nSymptoms: {{ Array.isArray($json.symptoms) ? $json.symptoms.join(', ') : $json.symptoms }}\nDuration: {{ $json.duration || 'not provided' }}\nSeverity reported: {{ $json.severity || 'not provided' }}\nPriority hint from system: {{ $json.priority_hint || 'none' }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 10
+        }
+      },
+      "id": "899bcb42-bd5a-4ef0-8dce-053b9d76a9dc",
+      "name": "EE Pre-Classifier",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const preClass=$input.first().json.message?.content||$input.first().json.text||$input.first().json.content||'ROUTINE';\nconst label=['CRITICAL','URGENT','PRIORITY','ROUTINE'].find(l=>preClass.toUpperCase().includes(l))||'ROUTINE';\nconst ctx=$('Merge Triage Entry Points').first().json;\nreturn [{json:{...ctx,priority_label:label}}];"
+      },
+      "id": "3926044c-32ff-4996-b202-f389d361cfbd",
+      "name": "Normalize EE Pre-Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx=$input.first().json;\nreturn [{json:{...ctx,priority_label:ctx.priority_hint||'UNKNOWN'}}];"
+      },
+      "id": "aa48f801-cf39-407f-baf3-2851667fdb81",
+      "name": "Normalize VAPI Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const allInputs=$input.all();\nconst ctx=allInputs.find(i=>i.json&&i.json.complaint)?.json||allInputs[0].json;\nreturn [{json:ctx}];"
+      },
+      "id": "558c865c-2621-4c73-a60a-5c5f7618aa94",
+      "name": "Join Triage Paths",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "patients",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "submission_key",
+              "condition": "=eq",
+              "keyValue": "={{ $json.submission_key }}"
+            }
+          ]
+        }
+      },
+      "id": "84e93f85-b1ee-491f-b7d8-11716c22bff4",
+      "name": "Fetch Patient DMK",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        384,
+        864
+      ],
+      "notes": "Fetch patient record for allergy flags and medical history context. Continues even if no record found."
+    },
+    {
+      "parameters": {
+        "jsCode": "const triageCtx=$('Join Triage Paths').first().json;\nconst dmkItems=$input.all();\nconst dmk=dmkItems.length>0&&dmkItems[0].json&&dmkItems[0].json.submission_key?dmkItems[0].json:null;\nconst allergyContext=dmk?([\n  ...(typeof dmk.drug_allergies==='string'?JSON.parse(dmk.drug_allergies):(dmk.drug_allergies||[])).map(a=>`DRUG ALLERGY: ${a}`),\n  ...(typeof dmk.food_allergies==='string'?JSON.parse(dmk.food_allergies):(dmk.food_allergies||[])).map(a=>`FOOD ALLERGY: ${a}`)\n].join('\\n')||'No known allergies recorded'):'No DMK on file';\nconst medContext=dmk?(typeof dmk.rx_meds==='string'?JSON.parse(dmk.rx_meds):(dmk.rx_meds||[])).join(', ')||'None recorded':'Unknown';\nconst condContext=dmk?(typeof dmk.conditions==='string'?JSON.parse(dmk.conditions):(dmk.conditions||[])).join(', ')||'None recorded':'Unknown';\nreturn [{json:{...triageCtx,allergy_context:allergyContext,medication_context:medContext,condition_context:condContext,patient_found:!!dmk,patient_age:dmk?.dob?Math.floor((Date.now()-new Date(dmk.dob).getTime())/31557600000):null,patient_gender:dmk?.gender||'unknown'}}];"
+      },
+      "id": "45b5047d-b7eb-4203-9104-be6c58231baf",
+      "name": "Prepare Triage Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are an expert medical triage AI. Assess the patient and return ONLY raw JSON — no markdown, no code fences.\n\nRequired format:\n{\n  \"urgency_score\": <integer 1-10, where 10 is immediately life-threatening>,\n  \"urgency_label\": \"CRITICAL | URGENT | PRIORITY | ROUTINE\",\n  \"urgency_reason\": \"one sentence clinical justification\",\n  \"likely_cause\": \"primary differential diagnosis\",\n  \"differential_list\": [\"up to 4 differentials in order of likelihood\"],\n  \"allergy_flags\": [\"any allergy-relevant warnings given the complaint — empty array if none\"],\n  \"medication_interactions\": [\"any current medication concerns relevant to presentation — empty array if none\"],\n  \"routing_decision\": \"DOCTOR | NURSE | SELF_CARE\",\n  \"routing_reason\": \"one sentence justification for routing\",\n  \"patient_message\": \"A calm, clear 1-2 sentence message to read to the patient over the phone explaining next steps\",\n  \"clinician_alert\": \"A brief alert for the clinician dashboard — include any red flags\",\n  \"red_flags\": [\"list of any red flag symptoms identified — empty array if none\"]\n}\n\nURGENCY THRESHOLDS:\n- CRITICAL (8-10): Chest pain with radiation, stroke symptoms, severe dyspnoea, anaphylaxis, loss of consciousness\n- URGENT (5-7): Acute abdominal pain, high fever, moderate dyspnoea, severe headache, significant injury\n- PRIORITY (3-4): Moderate symptoms, functional but uncomfortable, needs same-day care\n- ROUTINE (1-2): Mild, chronic, or non-urgent presentation",
+              "role": "system"
+            },
+            {
+              "content": "=Patient name: {{ $json.full_name }}\nAge: {{ $json.patient_age !== null ? $json.patient_age + ' years' : 'unknown' }}\nGender: {{ $json.patient_gender }}\nPresenting complaint: {{ $json.complaint }}\nSymptoms reported: {{ Array.isArray($json.symptoms) ? $json.symptoms.join(', ') : ($json.symptoms || 'none listed') }}\nDuration: {{ $json.duration || 'not provided' }}\nSelf-reported severity: {{ $json.severity || 'not provided' }}/10\nPre-classification: {{ $json.priority_label }}\n\nKnown allergies:\n{{ $json.allergy_context }}\n\nCurrent medications: {{ $json.medication_context }}\nKnown conditions: {{ $json.condition_context }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "78cbe150-eb32-4163-8771-9db29c3e5554",
+      "name": "AI Triage Engine",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        864,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiRaw=$input.first().json.message?.content||$input.first().json.text||$input.first().json.content;\nconst ctx=$('Prepare Triage Context').first().json;\nlet triage;\ntry{\n  triage=JSON.parse(aiRaw.replace(/```json|```/g,'').trim());\n}catch(e){throw new Error('Triage AI returned invalid JSON: '+aiRaw);}\nreturn [{json:{...ctx,triage,triage_id:'TR_'+Date.now()+'_'+(ctx.submission_key||'unknown')}}];"
+      },
+      "id": "028ec83f-872f-4fb0-aca2-56e6b39b3335",
+      "name": "Parse Triage Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "triage_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "triage_id",
+              "fieldValue": "={{ $json.triage_id }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $json.full_name }}"
+            },
+            {
+              "fieldId": "complaint",
+              "fieldValue": "={{ $json.complaint }}"
+            },
+            {
+              "fieldId": "symptoms",
+              "fieldValue": "={{ JSON.stringify($json.symptoms) }}"
+            },
+            {
+              "fieldId": "urgency_score",
+              "fieldValue": "={{ $json.triage.urgency_score }}"
+            },
+            {
+              "fieldId": "urgency_label",
+              "fieldValue": "={{ $json.triage.urgency_label }}"
+            },
+            {
+              "fieldId": "urgency_reason",
+              "fieldValue": "={{ $json.triage.urgency_reason }}"
+            },
+            {
+              "fieldId": "likely_cause",
+              "fieldValue": "={{ $json.triage.likely_cause }}"
+            },
+            {
+              "fieldId": "differential_list",
+              "fieldValue": "={{ JSON.stringify($json.triage.differential_list) }}"
+            },
+            {
+              "fieldId": "allergy_flags",
+              "fieldValue": "={{ JSON.stringify($json.triage.allergy_flags) }}"
+            },
+            {
+              "fieldId": "medication_interactions",
+              "fieldValue": "={{ JSON.stringify($json.triage.medication_interactions) }}"
+            },
+            {
+              "fieldId": "routing_decision",
+              "fieldValue": "={{ $json.triage.routing_decision }}"
+            },
+            {
+              "fieldId": "routing_reason",
+              "fieldValue": "={{ $json.triage.routing_reason }}"
+            },
+            {
+              "fieldId": "red_flags",
+              "fieldValue": "={{ JSON.stringify($json.triage.red_flags) }}"
+            },
+            {
+              "fieldId": "clinician_alert",
+              "fieldValue": "={{ $json.triage.clinician_alert }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $json.source }}"
+            },
+            {
+              "fieldId": "call_id",
+              "fieldValue": "={{ $json.call_id }}"
+            },
+            {
+              "fieldId": "pre_classification",
+              "fieldValue": "={{ $json.priority_label }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "949d3272-5c10-4455-af87-2e9c4e5ddd44",
+      "name": "Save Triage Session",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "call_queue",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "triage_id",
+              "fieldValue": "={{ $('Parse Triage Result').first().json.triage_id }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $('Parse Triage Result').first().json.submission_key }}"
+            },
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $('Parse Triage Result').first().json.full_name }}"
+            },
+            {
+              "fieldId": "complaint",
+              "fieldValue": "={{ $('Parse Triage Result').first().json.complaint }}"
+            },
+            {
+              "fieldId": "urgency_score",
+              "fieldValue": "={{ $('Parse Triage Result').first().json.triage.urgency_score }}"
+            },
+            {
+              "fieldId": "urgency_label",
+              "fieldValue": "={{ $('Parse Triage Result').first().json.triage.urgency_label }}"
+            },
+            {
+              "fieldId": "routing_decision",
+              "fieldValue": "={{ $('Parse Triage Result').first().json.triage.routing_decision }}"
+            },
+            {
+              "fieldId": "red_flags",
+              "fieldValue": "={{ JSON.stringify($('Parse Triage Result').first().json.triage.red_flags) }}"
+            },
+            {
+              "fieldId": "allergy_flags",
+              "fieldValue": "={{ JSON.stringify($('Parse Triage Result').first().json.triage.allergy_flags) }}"
+            },
+            {
+              "fieldId": "clinician_alert",
+              "fieldValue": "={{ $('Parse Triage Result').first().json.triage.clinician_alert }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "pending_payment"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $('Parse Triage Result').first().json.source }}"
+            },
+            {
+              "fieldId": "queued_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "d5f4f527-2483-4ac9-a7b9-e9d787f4640c",
+      "name": "Save to Call Queue",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Parse Triage Result').first().json.source }}",
+              "rightValue": "ee",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "2006f02e-61ed-4e06-b7ed-5186b0a54131",
+      "name": "Is EE or VAPI Response?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', triage_id: $('Parse Triage Result').first().json.triage_id, urgency_label: $('Parse Triage Result').first().json.triage.urgency_label, urgency_score: $('Parse Triage Result').first().json.triage.urgency_score, routing_decision: $('Parse Triage Result').first().json.triage.routing_decision, red_flags: $('Parse Triage Result').first().json.triage.red_flags, allergy_flags: $('Parse Triage Result').first().json.triage.allergy_flags }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "9b4f20aa-fe26-4580-844a-0783680febc1",
+      "name": "Respond to EE Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx=$('Parse Triage Result').first().json;\nreturn [{json:{results:[{toolCallId:ctx.toolCallId,result:JSON.stringify({triage_id:ctx.triage_id,urgency_label:ctx.triage.urgency_label,urgency_score:ctx.triage.urgency_score,routing_decision:ctx.triage.routing_decision,red_flags:ctx.triage.red_flags,allergy_flags:ctx.triage.allergy_flags,patient_message:ctx.triage.patient_message,message:ctx.triage.patient_message})}]}}];"
+      },
+      "id": "c56df4d3-fcb4-41f6-9fe4-0df8175635b1",
+      "name": "Build VAPI Triage Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "0f381880-f102-451f-9fe8-80962baf4d4c",
+      "name": "Respond to VAPI Triage Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ results: [{ toolCallId: $('Parse Unified Tool Call').first().json.toolCallId, result: 'Unknown tool call received. Please check the tool name and try again.' }] }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "86f95a6e-f269-4ea9-b849-5d2440e286c7",
+      "name": "Fallback Unknown Tool Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        16
+      ],
+      "notes": "Catches any tool name not matched by the Switch router"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Load Session For Summary": {
+      "main": [
+        [
+          {
+            "node": "Prepare Summary Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Summary Context": {
+      "main": [
+        [
+          {
+            "node": "AI Clinical Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Clinical Summary": {
+      "main": [
+        [
+          {
+            "node": "Parse Clinical Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Clinical Summary": {
+      "main": [
+        [
+          {
+            "node": "Save Summary to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Summary to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Trigger Vercel Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Vercel Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Build Clerking Complete Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Clerking Complete Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to VAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Check Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to VAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Update Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to VAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Save Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to VAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EE Trigger Triage Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge Triage Entry Points",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VAPI Triage Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge Triage Entry Points",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Triage Entry Points": {
+      "main": [
+        [
+          {
+            "node": "Is EE Direct Trigger?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is EE Direct Trigger?": {
+      "main": [
+        [
+          {
+            "node": "EE Pre-Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalize VAPI Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EE Pre-Classifier": {
+      "main": [
+        [
+          {
+            "node": "Normalize EE Pre-Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize EE Pre-Classification": {
+      "main": [
+        [
+          {
+            "node": "Join Triage Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize VAPI Input": {
+      "main": [
+        [
+          {
+            "node": "Join Triage Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Join Triage Paths": {
+      "main": [
+        [
+          {
+            "node": "Fetch Patient DMK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Patient DMK": {
+      "main": [
+        [
+          {
+            "node": "Prepare Triage Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Triage Context": {
+      "main": [
+        [
+          {
+            "node": "AI Triage Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Triage Engine": {
+      "main": [
+        [
+          {
+            "node": "Parse Triage Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Triage Result": {
+      "main": [
+        [
+          {
+            "node": "Save Triage Session",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save to Call Queue",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is EE or VAPI Response?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is EE or VAPI Response?": {
+      "main": [
+        [
+          {
+            "node": "Respond to EE Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build VAPI Triage Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build VAPI Triage Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to VAPI Triage Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unified VAPI Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Unified Tool Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Unified Tool Call": {
+      "main": [
+        [
+          {
+            "node": "Route Tool Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Tool Call": {
+      "main": [
+        [
+          {
+            "node": "Check Patient in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Existing Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate New EchoID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Match Symptoms & Build Question Set",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Load Clerking Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Load Session For Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Triage Entry Points",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Patient in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Build Check Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Existing Record": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Context": {
+      "main": [
+        [
+          {
+            "node": "AI Smart Field Mapper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Smart Field Mapper": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Prepare Supabase Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Supabase Fields": {
+      "main": [
+        [
+          {
+            "node": "Update Patient in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Patient in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Build Update Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate New EchoID": {
+      "main": [
+        [
+          {
+            "node": "Save Patient to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Patient to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Build Save Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Symptoms & Build Question Set": {
+      "main": [
+        [
+          {
+            "node": "Save Clerking Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Clerking Session": {
+      "main": [
+        [
+          {
+            "node": "Build First Question Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build First Question Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to VAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Clerking Session": {
+      "main": [
+        [
+          {
+            "node": "Record Answer & Advance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Answer & Advance": {
+      "main": [
+        [
+          {
+            "node": "Update Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Session": {
+      "main": [
+        [
+          {
+            "node": "Has More Questions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has More Questions?": {
+      "main": [
+        [
+          {
+            "node": "Build Next Question Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Questions Done Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b4b10ba4-6299-430b-979b-e37f57a1939c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "389998397733f688a676af7403bd913a5673d749385e7a5b5c4ef925a577f36d"
+  },
+  "id": "YoBEypm0eTkf8FzB",
+  "tags": []
+}

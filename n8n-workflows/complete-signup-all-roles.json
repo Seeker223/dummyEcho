@@ -1,0 +1,826 @@
+{
+  "name": "Emergency Echo - Complete Signup & Profile Flow",
+  "description": "Handles signup and role-specific profile creation for Patient, Doctor, Nurse, Partner, and User roles",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ee-signup",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-signup",
+      "name": "Signup Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-880, 128],
+      "webhookId": "68e1ac0d-6298-4fa6-a7a4-5cd6a16c395d",
+      "notes": "Receives: { user_id, email, full_name, title, username, state, role, password_hash, phone, verification_status, email_verified, is_verified, verified_at, auth_source, account_status }"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nfunction generateHex(length) {\n  const chars = '0123456789abcdef';\n  let hex = '';\n  for (let i = 0; i < length; i++) {\n    hex += chars[Math.floor(Math.random() * 16)];\n  }\n  return hex;\n}\n\nfunction generateSubmissionKey() {\n  return `EE_${generateHex(32)}`;\n}\n\nconst user_id = body.user_id || body.record?.id;\nconst email = body.email || body.record?.email;\nconst full_name = body.full_name || body.record?.user_metadata?.full_name || '';\nconst username = body.username || '';\nconst title = body.title || '';\nconst state = body.state || '';\nconst role = body.role || 'user';\nconst phone = body.phone || body.phone_number || '';\nconst submission_key = generateSubmissionKey();\nconst created_at = new Date().toISOString();\nconst verification_status = body.verification_status || 'pending';\nconst email_verified = Boolean(body.email_verified ?? false);\nconst is_verified = Boolean(body.is_verified ?? false);\nconst verified_at = body.verified_at || null;\nconst auth_source = body.auth_source || 'n8n';\nconst account_status = body.account_status || 'pending_verification';\n\nreturn [{\n  json: {\n    user_id,\n    email,\n    full_name,\n    username,\n    title,\n    state,\n    phone,\n    role,\n    submission_key,\n    created_at,\n    echo_id: submission_key,\n    verification_status,\n    email_verified,\n    is_verified,\n    verified_at,\n    auth_source,\n    account_status\n  }\n}];"
+      },
+      "id": "build-base-profile",
+      "name": "Build Base Profile Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-656, 128]
+    },
+    {
+      "parameters": {
+        "tableId": "profiles",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.email }}"
+            },
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $json.full_name }}"
+            },
+            {
+              "fieldId": "username",
+              "fieldValue": "={{ $json.username }}"
+            },
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $json.title }}"
+            },
+            {
+              "fieldId": "state",
+              "fieldValue": "={{ $json.state }}"
+            },
+            {
+              "fieldId": "role",
+              "fieldValue": "={{ $json.role }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $json.created_at }}"
+            }
+          ]
+        }
+      },
+      "id": "save-base-profile",
+      "name": "Save Base Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [-448, 128],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Build Base Profile Data').first().json.role }}",
+              "rightValue": "patient",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-patient",
+      "name": "Is Patient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-224, -200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Build Base Profile Data').first().json.role }}",
+              "rightValue": "doctor",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-doctor",
+      "name": "Is Doctor?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-224, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Build Base Profile Data').first().json.role }}",
+              "rightValue": "nurse",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-nurse",
+      "name": "Is Nurse?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-224, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Build Base Profile Data').first().json.role }}",
+              "rightValue": "partner",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-partner",
+      "name": "Is Partner?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-224, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract patient data from request\nconst body = $input.first().json.body || $input.first().json;\nconst baseProfile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    user_id: baseProfile.user_id,\n    submission_key: baseProfile.submission_key,\n    full_name: baseProfile.full_name,\n    // Basic patient info\n    age: body.age || null,\n    date_of_birth: body.date_of_birth || null,\n    phone_number: body.phone_number || null,\n    gender: body.gender || null, // 'male', 'female', 'other'\n    blood_type: body.blood_type || null, // 'A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'\n    genotype: body.genotype || null, // 'AA', 'AS', 'SS'\n    emergency_contact_name: body.emergency_contact_name || null,\n    emergency_contact_phone: body.emergency_contact_phone || null,\n    language_preference: body.language_preference || 'english',\n    // Medical history\n    medical_conditions: body.medical_conditions || [], // [\"Diabetes\", \"Hypertension\", ...]\n    chronic_conditions: body.chronic_conditions || [],\n    // Surgeries\n    past_surgeries: body.past_surgeries || [],\n    previous_hospitalizations: body.previous_hospitalizations || [],\n    // Medications\n    medications: body.medications || [], // [{name, dosage, frequency}, ...]\n    // Allergies\n    drug_allergies: body.drug_allergies || [],\n    food_allergies: body.food_allergies || [],\n    other_allergies: body.other_allergies || [],\n    // Vaccinations\n    vaccinations: body.vaccinations || [], // [{vaccine_type, date, status}, ...]\n    // Mental health\n    mental_health_history: body.mental_health_history || null,\n    current_mental_health_status: body.current_mental_health_status || null,\n    cognitive_issues: body.cognitive_issues || [],\n    // Family history\n    family_genetic_conditions: body.family_genetic_conditions || [],\n    inherited_diseases: body.inherited_diseases || [],\n    // Lifestyle\n    smoking_status: body.smoking_status || null, // 'never', 'former', 'current'\n    smoking_frequency: body.smoking_frequency || null,\n    alcohol_consumption: body.alcohol_consumption || null, // 'never', 'occasional', 'regular'\n    diet_type: body.diet_type || null, // 'omnivore', 'vegetarian', 'vegan'\n    exercise_frequency: body.exercise_frequency || null, // hours per week\n    occupation: body.occupation || null,\n    pets: body.pets || [],\n    // Assistive devices\n    wheelchair_user: body.wheelchair_user || false,\n    hearing_aid_user: body.hearing_aid_user || false,\n    pacemaker_user: body.pacemaker_user || false,\n    prosthetic_user: body.prosthetic_user || false,\n    other_assistive_devices: body.other_assistive_devices || [],\n    // Female-specific (OB/GYN)\n    is_pregnant: body.is_pregnant || false,\n    pregnancy_trimester: body.pregnancy_trimester || null,\n    obstetric_history: body.obstetric_history || null,\n    number_of_children: body.number_of_children || 0,\n    menstruation_status: body.menstruation_status || null,\n    menstrual_cycle_days: body.menstrual_cycle_days || null,\n    contraception_method: body.contraception_method || null,\n    contraception_duration: body.contraception_duration || null\n  }\n}];"
+      },
+      "id": "build-patient-data",
+      "name": "Build Patient Medical Kit Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [16, -300]
+    },
+    {
+      "parameters": {
+        "tableId": "patients",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $json.full_name }}"
+            },
+            {
+              "fieldId": "age",
+              "fieldValue": "={{ $json.age }}"
+            },
+            {
+              "fieldId": "date_of_birth",
+              "fieldValue": "={{ $json.date_of_birth }}"
+            },
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "gender",
+              "fieldValue": "={{ $json.gender }}"
+            },
+            {
+              "fieldId": "blood_type",
+              "fieldValue": "={{ $json.blood_type }}"
+            },
+            {
+              "fieldId": "genotype",
+              "fieldValue": "={{ $json.genotype }}"
+            },
+            {
+              "fieldId": "emergency_contact_name",
+              "fieldValue": "={{ $json.emergency_contact_name }}"
+            },
+            {
+              "fieldId": "emergency_contact_phone",
+              "fieldValue": "={{ $json.emergency_contact_phone }}"
+            },
+            {
+              "fieldId": "language_preference",
+              "fieldValue": "={{ $json.language_preference }}"
+            },
+            {
+              "fieldId": "medical_conditions",
+              "fieldValue": "={{ $json.medical_conditions }}"
+            },
+            {
+              "fieldId": "chronic_conditions",
+              "fieldValue": "={{ $json.chronic_conditions }}"
+            },
+            {
+              "fieldId": "past_surgeries",
+              "fieldValue": "={{ $json.past_surgeries }}"
+            },
+            {
+              "fieldId": "previous_hospitalizations",
+              "fieldValue": "={{ $json.previous_hospitalizations }}"
+            },
+            {
+              "fieldId": "medications",
+              "fieldValue": "={{ $json.medications }}"
+            },
+            {
+              "fieldId": "drug_allergies",
+              "fieldValue": "={{ $json.drug_allergies }}"
+            },
+            {
+              "fieldId": "food_allergies",
+              "fieldValue": "={{ $json.food_allergies }}"
+            },
+            {
+              "fieldId": "other_allergies",
+              "fieldValue": "={{ $json.other_allergies }}"
+            },
+            {
+              "fieldId": "vaccinations",
+              "fieldValue": "={{ $json.vaccinations }}"
+            },
+            {
+              "fieldId": "mental_health_history",
+              "fieldValue": "={{ $json.mental_health_history }}"
+            },
+            {
+              "fieldId": "family_genetic_conditions",
+              "fieldValue": "={{ $json.family_genetic_conditions }}"
+            },
+            {
+              "fieldId": "smoking_status",
+              "fieldValue": "={{ $json.smoking_status }}"
+            },
+            {
+              "fieldId": "alcohol_consumption",
+              "fieldValue": "={{ $json.alcohol_consumption }}"
+            },
+            {
+              "fieldId": "diet_type",
+              "fieldValue": "={{ $json.diet_type }}"
+            },
+            {
+              "fieldId": "exercise_frequency",
+              "fieldValue": "={{ $json.exercise_frequency }}"
+            },
+            {
+              "fieldId": "occupation",
+              "fieldValue": "={{ $json.occupation }}"
+            },
+            {
+              "fieldId": "assistive_devices",
+              "fieldValue": "={{ $json.other_assistive_devices }}"
+            }
+          ]
+        }
+      },
+      "id": "save-patient-profile",
+      "name": "Save Patient Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [240, -300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract doctor data from request\nconst body = $input.first().json.body || $input.first().json;\nconst baseProfile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    user_id: baseProfile.user_id,\n    submission_key: baseProfile.submission_key,\n    full_name: baseProfile.full_name,\n    license_id: body.license_id || null, // MDCN format\n    license_number: body.license_number || body.license_id || null,\n    specialization: body.specialization || null,\n    state: baseProfile.state,\n    phone_number: body.phone_number || null,\n    hospital_affiliation: body.hospital_affiliation || null,\n    years_of_experience: body.years_of_experience || null,\n    bio: body.bio || null,\n    // Document uploads\n    government_id: body.government_id || null, // file URL or base64\n    government_id_status: body.government_id_status || 'pending', // pending, verified, rejected\n    annual_license: body.annual_license || null, // file URL or base64\n    annual_license_status: body.annual_license_status || 'pending',\n    medical_degree: body.medical_degree || null, // file URL or base64\n    medical_degree_status: body.medical_degree_status || 'pending',\n    registration_certificate: body.registration_certificate || null, // file URL or base64\n    registration_certificate_status: body.registration_certificate_status || 'pending',\n    verified_by_admin: false,\n    verification_notes: null\n  }\n}];"
+      },
+      "id": "build-doctor-data",
+      "name": "Build Doctor Profile Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [16, -50]
+    },
+    {
+      "parameters": {
+        "tableId": "doctors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $json.full_name }}"
+            },
+            {
+              "fieldId": "license_number",
+              "fieldValue": "={{ $json.license_number }}"
+            },
+            {
+              "fieldId": "specialization",
+              "fieldValue": "={{ $json.specialization }}"
+            },
+            {
+              "fieldId": "state",
+              "fieldValue": "={{ $json.state }}"
+            },
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "hospital_affiliation",
+              "fieldValue": "={{ $json.hospital_affiliation }}"
+            },
+            {
+              "fieldId": "years_of_experience",
+              "fieldValue": "={{ $json.years_of_experience }}"
+            },
+            {
+              "fieldId": "government_id",
+              "fieldValue": "={{ $json.government_id }}"
+            },
+            {
+              "fieldId": "government_id_status",
+              "fieldValue": "={{ $json.government_id_status }}"
+            },
+            {
+              "fieldId": "annual_license",
+              "fieldValue": "={{ $json.annual_license }}"
+            },
+            {
+              "fieldId": "annual_license_status",
+              "fieldValue": "={{ $json.annual_license_status }}"
+            },
+            {
+              "fieldId": "medical_degree",
+              "fieldValue": "={{ $json.medical_degree }}"
+            },
+            {
+              "fieldId": "medical_degree_status",
+              "fieldValue": "={{ $json.medical_degree_status }}"
+            },
+            {
+              "fieldId": "registration_certificate",
+              "fieldValue": "={{ $json.registration_certificate }}"
+            },
+            {
+              "fieldId": "registration_certificate_status",
+              "fieldValue": "={{ $json.registration_certificate_status }}"
+            }
+          ]
+        }
+      },
+      "id": "save-doctor-profile",
+      "name": "Save Doctor Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [240, -50],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract nurse data from request\nconst body = $input.first().json.body || $input.first().json;\nconst baseProfile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    user_id: baseProfile.user_id,\n    submission_key: baseProfile.submission_key,\n    full_name: baseProfile.full_name,\n    license_id: body.license_id || null, // NMCN format\n    license_number: body.license_number || body.license_id || null,\n    certification: body.certification || null,\n    department: body.department || body.specialization || null,\n    state: baseProfile.state,\n    phone_number: body.phone_number || null,\n    hospital_affiliation: body.hospital_affiliation || null,\n    years_of_experience: body.years_of_experience || null,\n    // Document uploads\n    government_id: body.government_id || null, // file URL or base64\n    government_id_status: body.government_id_status || 'pending',\n    annual_license: body.annual_license || null,\n    annual_license_status: body.annual_license_status || 'pending',\n    nursing_degree: body.nursing_degree || null,\n    nursing_degree_status: body.nursing_degree_status || 'pending',\n    verified_by_admin: false,\n    verification_notes: null\n  }\n}];"
+      },
+      "id": "build-nurse-data",
+      "name": "Build Nurse Profile Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [16, 150]
+    },
+    {
+      "parameters": {
+        "tableId": "nurses",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $json.full_name }}"
+            },
+            {
+              "fieldId": "license_number",
+              "fieldValue": "={{ $json.license_number }}"
+            },
+            {
+              "fieldId": "certification",
+              "fieldValue": "={{ $json.certification }}"
+            },
+            {
+              "fieldId": "department",
+              "fieldValue": "={{ $json.department }}"
+            },
+            {
+              "fieldId": "state",
+              "fieldValue": "={{ $json.state }}"
+            },
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "hospital_affiliation",
+              "fieldValue": "={{ $json.hospital_affiliation }}"
+            },
+            {
+              "fieldId": "years_of_experience",
+              "fieldValue": "={{ $json.years_of_experience }}"
+            },
+            {
+              "fieldId": "government_id",
+              "fieldValue": "={{ $json.government_id }}"
+            },
+            {
+              "fieldId": "government_id_status",
+              "fieldValue": "={{ $json.government_id_status }}"
+            },
+            {
+              "fieldId": "annual_license",
+              "fieldValue": "={{ $json.annual_license }}"
+            },
+            {
+              "fieldId": "annual_license_status",
+              "fieldValue": "={{ $json.annual_license_status }}"
+            },
+            {
+              "fieldId": "nursing_degree",
+              "fieldValue": "={{ $json.nursing_degree }}"
+            },
+            {
+              "fieldId": "nursing_degree_status",
+              "fieldValue": "={{ $json.nursing_degree_status }}"
+            }
+          ]
+        }
+      },
+      "id": "save-nurse-profile",
+      "name": "Save Nurse Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [240, 150],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract partner data from request\nconst body = $input.first().json.body || $input.first().json;\nconst baseProfile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    user_id: baseProfile.user_id,\n    submission_key: baseProfile.submission_key,\n    business_name: body.business_name || null,\n    business_category: body.business_category || null, // 'pharmacy', 'lab', 'fitness', 'wellness'\n    business_city: body.business_city || null,\n    business_state: baseProfile.state,\n    phone_number: body.phone_number || null,\n    business_address: body.business_address || null,\n    business_registration_number: body.business_registration_number || null,\n    verified_by_admin: false\n  }\n}];"
+      },
+      "id": "build-partner-data",
+      "name": "Build Partner Business Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [16, 350]
+    },
+    {
+      "parameters": {
+        "tableId": "partners",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "business_name",
+              "fieldValue": "={{ $json.business_name }}"
+            },
+            {
+              "fieldId": "business_category",
+              "fieldValue": "={{ $json.business_category }}"
+            },
+            {
+              "fieldId": "business_city",
+              "fieldValue": "={{ $json.business_city }}"
+            },
+            {
+              "fieldId": "business_state",
+              "fieldValue": "={{ $json.business_state }}"
+            },
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "business_address",
+              "fieldValue": "={{ $json.business_address }}"
+            },
+            {
+              "fieldId": "business_registration_number",
+              "fieldValue": "={{ $json.business_registration_number }}"
+            }
+          ]
+        }
+      },
+      "id": "save-partner-profile",
+      "name": "Save Partner Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [240, 350],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "profiles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "=eq",
+              "keyValue": "={{ $('Build Base Profile Data').first().json.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "wallet_balance",
+              "fieldValue": "=0"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "create-wallet",
+      "name": "Create User Wallet",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [480, 128],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const profile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    to: profile.email,\n    subject: 'Welcome to EmergencyEcho',\n    body: `Hi ${profile.full_name || 'there'},\\n\\nYour EmergencyEcho account is ready.\\n\\nYour EmergencyEcho ID: ${profile.submission_key}\\n\\nRole: ${profile.role.toUpperCase()}\\n\\nSave this ID — you will need it when speaking with EchoAI.\\n\\nStart your journey: ${process.env.NEXT_PUBLIC_APP_URL}/dashboard\\n\\nStay safe,\\nThe EmergencyEcho Team`\n  }\n}];"
+      },
+      "id": "build-welcome-email",
+      "name": "Build Welcome Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "const baseProfile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    user_id: baseProfile.user_id,\n    echo_id: baseProfile.submission_key,\n    role: baseProfile.role,\n    email: baseProfile.email,\n    full_name: baseProfile.full_name,\n    message: `${baseProfile.role.charAt(0).toUpperCase() + baseProfile.role.slice(1)} profile created successfully. Check your email to verify your account.`\n  }\n}];"
+      },
+      "id": "build-response",
+      "name": "Build Signup Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 128]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Vercel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 128]
+    }
+  ],
+  "connections": {
+    "Signup Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Base Profile Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Base Profile Data": {
+      "main": [
+        [
+          {
+            "node": "Save Base Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Base Profile": {
+      "main": [
+        [
+          {
+            "node": "Is Patient?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Doctor?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Nurse?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Partner?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create User Wallet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Patient?": {
+      "main": [
+        [
+          {
+            "node": "Build Patient Medical Kit Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Patient Medical Kit Data": {
+      "main": [
+        [
+          {
+            "node": "Save Patient Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Doctor?": {
+      "main": [
+        [
+          {
+            "node": "Build Doctor Profile Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Doctor Profile Data": {
+      "main": [
+        [
+          {
+            "node": "Save Doctor Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Nurse?": {
+      "main": [
+        [
+          {
+            "node": "Build Nurse Profile Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Nurse Profile Data": {
+      "main": [
+        [
+          {
+            "node": "Save Nurse Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Partner?": {
+      "main": [
+        [
+          {
+            "node": "Build Partner Business Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Partner Business Data": {
+      "main": [
+        [
+          {
+            "node": "Save Partner Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Build Signup Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Signup Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Vercel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "389998397733f688a676af7403bd913a5673d749385e7a5b5c4ef925a577f36d"
+  }
+}

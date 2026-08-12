@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Register — Attendance & Scores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#23201B;
+    --ink-soft:#5A5448;
+    --paper:#FAF6EE;
+    --paper-raised:#FFFFFF;
+    --rule:#D8D2C0;
+    --rule-strong:#B9B19A;
+    --navy:#1B2A4A;
+    --navy-soft:#2E4066;
+    --present:#3F7D5C;
+    --present-bg:#E7F0EA;
+    --absent:#B5503D;
+    --absent-bg:#F6E8E4;
+    --gold:#B68A35;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    max-width:1180px;
+    margin:0 auto;
+    padding:28px 20px 80px;
+  }
+
+  /* Header */
+  .masthead{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:24px;
+    border-bottom:3px solid var(--navy);
+    padding-bottom:18px;
+    margin-bottom:6px;
+    flex-wrap:wrap;
+  }
+  .masthead-left .eyebrow{
+    font-family:'Inter',sans-serif;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--gold);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .masthead h1{
+    font-family:'Source Serif 4',serif;
+    font-weight:700;
+    font-size:clamp(28px,4vw,40px);
+    margin:0;
+    color:var(--navy);
+    letter-spacing:-0.01em;
+  }
+  .meta-row{
+    display:flex;
+    gap:18px;
+    margin-top:10px;
+    flex-wrap:wrap;
+  }
+  .meta-field{
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .meta-field input{
+    font-family:'Inter',sans-serif;
+    border:none;
+    border-bottom:1.5px solid var(--rule-strong);
+    background:transparent;
+    font-size:14px;
+    color:var(--ink);
+    padding:2px 4px;
+    width:140px;
+    font-weight:600;
+  }
+  .meta-field input:focus{outline:none;border-bottom-color:var(--navy);}
+  .meta-field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-bottom:2px;}
+
+  .student-count{
+    text-align:right;
+    font-family:'Source Serif 4',serif;
+  }
+  .student-count .num{
+    font-size:34px;
+    font-weight:700;
+    color:var(--navy);
+    line-height:1;
+  }
+  .student-count .label{
+    font-size:11px;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:.1em;
+  }
+
+  /* Tabs */
+  .tabs{
+    display:flex;
+    gap:4px;
+    margin:22px 0 18px;
+  }
+  .tab{
+    font-family:'Source Serif 4',serif;
+    font-size:15px;
+    font-weight:600;
+    padding:10px 20px;
+    background:transparent;
+    border:1.5px solid var(--rule-strong);
+    border-bottom:none;
+    border-radius:8px 8px 0 0;
+    color:var(--ink-soft);
+    cursor:pointer;
+    position:relative;
+    top:1px;
+  }
+  .tab.active{
+    background:var(--paper-raised);
+    color:var(--navy);
+    border-color:var(--navy);
+    border-bottom:1.5px solid var(--paper-raised);
+  }
+  .panel{
+    background:var(--paper-raised);
+    border:1.5px solid var(--navy);
+    border-radius:0 10px 10px 10px;
+    padding:24px;
+  }
+  .panel-section + .panel-section{margin-top:34px;}
+
+  /* Voice roll call */
+  .roll-call{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    background:linear-gradient(135deg,#1B2A4A,#2E4066);
+    border-radius:var(--radius);
+    padding:18px 22px;
+    color:#fff;
+    flex-wrap:wrap;
+  }
+  .mic-btn{
+    width:58px;height:58px;
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,.35);
+    background:rgba(255,255,255,.08);
+    color:#fff;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    transition:background .15s,transform .15s,border-color .15s;
+    position:relative;
+  }
+  .mic-btn:hover{background:rgba(255,255,255,.16);}
+  .mic-btn.listening{
+    background:var(--absent);
+    border-color:var(--absent);
+    animation:pulse 1.4s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(181,80,61,.55);}
+    70%{box-shadow:0 0 0 16px rgba(181,80,61,0);}
+    100%{box-shadow:0 0 0 0 rgba(181,80,61,0);}
+  }
+  .mic-btn svg{width:24px;height:24px;}
+  .roll-call-text{flex:1;min-width:220px;}
+  .roll-call-text .title{font-family:'Source Serif 4',serif;font-weight:600;font-size:17px;margin-bottom:3px;}
+  .roll-call-text .sub{font-size:12.5px;color:rgba(255,255,255,.75);line-height:1.5;}
+  .roll-call-status{
+    font-size:13px;
+    font-weight:600;
+    background:rgba(255,255,255,.12);
+    padding:8px 14px;
+    border-radius:7px;
+    min-width:200px;
+    max-width:340px;
+  }
+  .roll-call-status .heard{color:#FFE8B0;font-weight:700;}
+  .week-select{
+    margin-top:14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .week-select label{font-size:12.5px;color:var(--ink-soft);font-weight:600;}
+  .week-select select{
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;
+    padding:6px 10px;
+    border-radius:6px;
+    border:1.5px solid var(--rule-strong);
+    background:var(--paper);
+    color:var(--ink);
+    font-weight:600;
+  }
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--ink-soft);margin-left:auto;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  /* Section headers */
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .section-head h2{
+    font-family:'Source Serif 4',serif;
+    font-size:18px;
+    margin:0;
+    color:var(--navy);
+  }
+  .section-head .term-toggle{display:flex;gap:6px;}
+  .term-btn{
+    font-size:12px;font-weight:600;
+    padding:6px 12px;
+    border-radius:6px;
+    border:1.5px solid var(--rule-strong);
+    background:transparent;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .term-btn.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn-ghost{
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;font-weight:600;
+    padding:7px 13px;
+    border-radius:6px;
+    border:1.5px solid var(--rule-strong);
+    background:var(--paper);
+    color:var(--navy);
+    cursor:pointer;
+  }
+  .btn-ghost:hover{border-color:var(--navy);}
+
+  /* Table */
+  .table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--rule);
+    border-radius:8px;
+  }
+  table{
+    border-collapse:collapse;
+    width:100%;
+    font-size:13px;
+    min-width:900px;
+  }
+  thead th{
+    background:var(--navy);
+    color:#fff;
+    font-weight:600;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    padding:9px 6px;
+    text-align:center;
+    white-space:nowrap;
+    border-right:1px solid rgba(255,255,255,.12);
+    border-bottom:1px solid rgba(255,255,255,.12);
+  }
+  thead th.col-sn{width:42px;}
+  thead th.col-name{
+    text-align:left;
+    padding-left:12px;
+    position:sticky;left:0;
+    background:var(--navy);
+    z-index:3;
+    min-width:170px;
+  }
+  tbody td.col-sn{
+    text-align:center;
+    color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+    background:var(--paper);
+  }
+  tbody td.col-name{
+    position:sticky;left:0;
+    background:var(--paper-raised);
+    z-index:2;
+    font-weight:500;
+    border-right:1px solid var(--rule-strong);
+  }
+  tbody tr:nth-child(even) td.col-name{background:#F4F0E4;}
+  tbody tr:nth-child(even) td.col-sn{background:#F4F0E4;}
+  tbody td{
+    border-bottom:1px solid var(--rule);
+    border-right:1px solid var(--rule);
+    padding:6px 4px;
+    text-align:center;
+    vertical-align:middle;
+  }
+  .name-input{
+    font-family:'Inter',sans-serif;
+    border:none;
+    background:transparent;
+    font-size:13.5px;
+    font-weight:500;
+    color:var(--ink);
+    width:100%;
+    padding:4px 6px;
+    border-radius:4px;
+  }
+  .name-input:focus{outline:2px solid var(--navy);background:#fff;}
+  .name-input::placeholder{color:#B9B19A;font-weight:400;}
+
+  .att-cell{
+    width:26px;height:26px;
+    cursor:pointer;
+    user-select:none;
+    font-weight:700;
+    border-radius:4px;
+    transition:background .12s;
+    margin:0 auto;
+  }
+  .att-cell .mark{
+    display:inline-flex;
+    align-items:center;justify-content:center;
+    width:20px;height:20px;
+    border-radius:4px;
+    font-size:11px;
+  }
+  .att-cell[data-state="present"] .mark{background:var(--present-bg);color:var(--present);}
+  .att-cell[data-state="absent"] .mark{background:var(--absent-bg);color:var(--absent);}
+  .att-cell[data-state=""] .mark{color:var(--rule-strong);}
+  .att-cell.just-marked{animation:flash .6s ease;}
+  @keyframes flash{0%{background:#FFE8B0;}100%{background:transparent;}}
+
+  .score-input{
+    font-family:'Inter',sans-serif;
+    width:38px;
+    border:none;
+    background:transparent;
+    text-align:center;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink);
+    border-radius:4px;
+    padding:4px 2px;
+    font-variant-numeric:tabular-nums;
+  }
+  .score-input:focus{outline:2px solid var(--navy);background:#fff;}
+  .total-cell{font-weight:700;color:var(--navy);background:#F0EBDC !important;}
+
+  .add-row-btn{
+    margin-top:10px;
+    font-family:'Inter',sans-serif;
+    font-size:13px;font-weight:600;
+    color:var(--navy);
+    background:transparent;
+    border:1.5px dashed var(--rule-strong);
+    border-radius:7px;
+    padding:9px;
+    width:100%;
+    cursor:pointer;
+  }
+  .add-row-btn:hover{border-color:var(--navy);background:#F4F0E4;}
+
+  .footer-note{
+    margin-top:22px;
+    font-size:12px;
+    color:var(--ink-soft);
+    line-height:1.6;
+    border-top:1px solid var(--rule);
+    padding-top:14px;
+  }
+  .footer-note strong{color:var(--navy);}
+
+  .toast{
+    position:fixed;
+    bottom:24px;left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--navy);
+    color:#fff;
+    padding:11px 20px;
+    border-radius:8px;
+    font-size:13.5px;
+    font-weight:500;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s, transform .25s;
+    z-index:50;
+    box-shadow:0 8px 24px rgba(0,0,0,.2);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:640px){
+    .roll-call{flex-direction:column;align-items:stretch;text-align:center;}
+    .roll-call-status{max-width:none;}
+    .legend{margin-left:0;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="masthead">
+    <div class="masthead-left">
+      <div class="eyebrow">Class Subject Register</div>
+      <h1 id="classTitle">Class Register</h1>
+      <div class="meta-row">
+        <div class="meta-field">
+          <label>Year</label>
+          <input type="text" id="yearField" placeholder="2025/2026">
+        </div>
+        <div class="meta-field">
+          <label>Class</label>
+          <input type="text" id="classField" placeholder="e.g. SS2 Gold">
+        </div>
+        <div class="meta-field">
+          <label>Subject</label>
+          <input type="text" id="subjectField" placeholder="e.g. Biology">
+        </div>
+        <div class="meta-field">
+          <label>Teacher Name</label>
+          <input type="text" id="teacherField" placeholder="e.g. Mr. Smith">
+        </div>
+        <div class="meta-field" style="width:100%; margin-top:10px;">
+          <label>n8n Webhook URL</label>
+          <input type="text" id="webhookField" style="width:100%; max-width:400px;" placeholder="https://your-n8n-url.com/webhook/submit">
+        </div>
+      </div>
+    </div>
+    <div class="student-count" style="display:flex; flex-direction:column; align-items:flex-end; gap:10px;">
+      <div>
+        <div class="num" id="studentCount">0</div>
+        <div class="label">Students</div>
+      </div>
+      <button class="btn-ghost" id="syncBtn" style="background:var(--navy); color:#fff; border:none; padding:10px 16px;">Sync to n8n</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="attendance">Attendance</button>
+    <button class="tab" data-tab="scores">Examination Scores</button>
+  </div>
+
+  <!-- ATTENDANCE PANEL -->
+  <div class="panel" id="panel-attendance">
+
+    <div class="panel-section">
+      <div class="roll-call">
+        <button class="mic-btn" id="micBtn" title="Start roll call">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="micIcon">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </button>
+        <div class="roll-call-text">
+          <div class="title">Call the register by voice</div>
+          <div class="sub">Press the mic, then for each student say their name followed by "present" or "absent". Example: "Samuel, present."</div>
+        </div>
+        <div class="roll-call-status" id="rollStatus">Mic is off. Tap to start.</div>
+      </div>
+
+      <div class="week-select">
+        <label>Marking attendance for:</label>
+        <select id="attTermSelect">
+          <option value="1">1st Term</option>
+          <option value="2">2nd Term</option>
+          <option value="3">3rd Term</option>
+        </select>
+        <select id="weekSelect"></select>
+        <select id="daySelect">
+          <option value="0">Monday</option>
+          <option value="1">Tuesday</option>
+          <option value="2">Wednesday</option>
+          <option value="3">Thursday</option>
+          <option value="4">Friday</option>
+        </select>
+        <div class="legend">
+          <span><span class="dot" style="background:var(--present)"></span>Present</span>
+          <span><span class="dot" style="background:var(--absent)"></span>Absent</span>
+          <span><span class="dot" style="background:var(--rule-strong)"></span>Not marked</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-head">
+        <h2>Weekly attendance — click a cell to mark, or use voice above</h2>
+        <div class="btn-row">
+          <button class="btn-ghost" id="exportAttBtn">Export CSV</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="attTable">
+          <thead>
+            <tr id="attHeadRow1"></tr>
+            <tr id="attHeadRow2"></tr>
+          </thead>
+          <tbody id="attBody"></tbody>
+        </table>
+      </div>
+      <button class="add-row-btn" id="addStudentBtnAtt">+ Add student</button>
+    </div>
+
+    <div class="footer-note">
+      <strong>Tip:</strong> Click any attendance cell to cycle through Not marked → Present → Absent. Voice roll call marks the currently selected week and day above.
+    </div>
+  </div>
+
+  <!-- SCORES PANEL -->
+  <div class="panel" id="panel-scores" style="display:none;">
+    <div class="panel-section">
+      <div class="section-head">
+        <h2>Examination scores</h2>
+        <div class="term-toggle" id="termToggle">
+          <button class="term-btn active" data-term="1">1st Term</button>
+          <button class="term-btn" data-term="2">2nd Term</button>
+          <button class="term-btn" data-term="3">3rd Term</button>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-bottom:12px;">
+        <button class="btn-ghost" id="exportScoreBtn">Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table id="scoreTable">
+          <thead>
+            <tr id="scoreHeadRow"></tr>
+          </thead>
+          <tbody id="scoreBody"></tbody>
+        </table>
+      </div>
+      <button class="add-row-btn" id="addStudentBtnScore">+ Add student</button>
+    </div>
+    <div class="footer-note">
+      <strong>Total</strong> is calculated automatically as CA1 + CA2 + CA3 + CA4 + Exam. Totals are accumulated across terms when navigating to 2nd and 3rd Term.
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const WEEKS = 14;
+  const TERMS = [1,2,3];
+  let students = []; // {id, name}
+  let attendance = {}; // termKey -> studentId -> dayIndex -> 'present'|'absent'|''
+  let scores = {}; // termKey -> studentId -> {ca1,ca2,ca3,ca4,exam}
+  let currentTerm = 1;
+  let nextId = 1;
+
+  function termKey(t){ return 'term'+t; }
+
+  function ensureStudent(){
+    return { id: nextId++, name: '' };
+  }
+
+  function ensureTermData(){
+    TERMS.forEach(t=>{
+      const tk = termKey(t);
+      if(!attendance[tk]) attendance[tk] = {};
+      if(!scores[tk]) scores[tk] = {};
+      students.forEach(s=>{
+        if(!attendance[tk][s.id]) attendance[tk][s.id] = Array(WEEKS * 5).fill('');
+        if(!scores[tk][s.id]) scores[tk][s.id] = {ca1:'',ca2:'',ca3:'',ca4:'',exam:''};
+      });
+    });
+  }
+
+  function initStudents(n){
+    students = [];
+    for(let i=0;i<n;i++) students.push(ensureStudent());
+    ensureTermData();
+  }
+
+  initStudents(20);
+
+  // ---------- Week select ----------
+  const weekSelect = document.getElementById('weekSelect');
+  for(let w=1; w<=WEEKS; w++){
+    const opt = document.createElement('option');
+    opt.value = w-1;
+    opt.textContent = 'Week '+w;
+    weekSelect.appendChild(opt);
+  }
+
+  document.getElementById('attTermSelect').addEventListener('change', ()=>{
+    renderAttendance();
+  });
+
+  // ---------- Tabs ----------
+  document.querySelectorAll('.tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      const which = tab.dataset.tab;
+      document.getElementById('panel-attendance').style.display = which==='attendance' ? '' : 'none';
+      document.getElementById('panel-scores').style.display = which==='scores' ? '' : 'none';
+    });
+  });
+
+  // ---------- Term toggle (scores) ----------
+  document.getElementById('termToggle').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.term-btn');
+    if(!btn) return;
+    document.querySelectorAll('.term-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTerm = parseInt(btn.dataset.term,10);
+    renderScores();
+  });
+
+  // ---------- Title meta ----------
+  function updateTitle(){
+    const cls = document.getElementById('classField').value.trim();
+    document.getElementById('classTitle').textContent = cls ? cls+' — Class Register' : 'Class Register';
+  }
+  ['classField','subjectField','yearField','teacherField'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', updateTitle);
+  });
+
+  // ---------- Render attendance table ----------
+  function renderAttendanceHead(){
+    const row1 = document.getElementById('attHeadRow1');
+    const row2 = document.getElementById('attHeadRow2');
+    row1.innerHTML = '';
+    row2.innerHTML = '';
+    
+    const thSn = document.createElement('th'); thSn.className='col-sn'; thSn.rowSpan=2; thSn.textContent='S/N';
+    const thName = document.createElement('th'); thName.className='col-name'; thName.rowSpan=2; thName.textContent='Name';
+    row1.appendChild(thSn); row1.appendChild(thName);
+    
+    const days = ['M','T','W','T','F'];
+    for(let w=1; w<=WEEKS; w++){
+      const thWk = document.createElement('th');
+      thWk.colSpan = 5;
+      thWk.textContent = 'Wk '+w;
+      thWk.style.borderLeft = '2px solid rgba(255,255,255,.2)';
+      row1.appendChild(thWk);
+      
+      for(let d=0; d<5; d++){
+        const thDay = document.createElement('th');
+        thDay.textContent = days[d];
+        if (d===0) thDay.style.borderLeft = '2px solid rgba(255,255,255,.2)';
+        row2.appendChild(thDay);
+      }
+    }
+  }
+
+  function cycleState(state){
+    if(state==='') return 'present';
+    if(state==='present') return 'absent';
+    return '';
+  }
+
+  function markSymbol(state){
+    if(state==='present') return '✓';
+    if(state==='absent') return '✕';
+    return '·';
+  }
+
+  function renderAttendanceBody(){
+    const body = document.getElementById('attBody');
+    body.innerHTML = '';
+    const tk = termKey(currentTermForAttendance());
+    students.forEach((s, idx)=>{
+      const tr = document.createElement('tr');
+
+      const tdSn = document.createElement('td'); tdSn.className='col-sn'; tdSn.textContent = idx+1;
+      tr.appendChild(tdSn);
+
+      const tdName = document.createElement('td'); tdName.className='col-name';
+      const input = document.createElement('input');
+      input.type='text'; input.className='name-input'; input.placeholder='Student name';
+      input.value = s.name;
+      input.addEventListener('input', ()=>{ 
+        s.name = input.value; 
+        document.getElementById('studentCount').textContent = students.length;
+        syncNameInputs();
+      });
+      tdName.appendChild(input);
+      tr.appendChild(tdName);
+
+      for(let w=0; w<WEEKS; w++){
+        for(let d=0; d<5; d++){
+          const dayIndex = w * 5 + d;
+          const td = document.createElement('td');
+          if (d === 0) td.style.borderLeft = '2px solid var(--rule-strong)';
+          
+          const cell = document.createElement('div');
+          cell.className='att-cell';
+          const state = attendance[tk][s.id][dayIndex] || '';
+          cell.dataset.state = state;
+          cell.innerHTML = '<span class="mark">'+markSymbol(state)+'</span>';
+          cell.addEventListener('click', ()=>{
+            const cur = attendance[tk][s.id][dayIndex] || '';
+            const next = cycleState(cur);
+            attendance[tk][s.id][dayIndex] = next;
+            cell.dataset.state = next;
+            cell.querySelector('.mark').textContent = markSymbol(next);
+          });
+          td.appendChild(cell);
+          tr.appendChild(td);
+        }
+      }
+      body.appendChild(tr);
+    });
+    document.getElementById('studentCount').textContent = students.length;
+  }
+
+  function currentTermForAttendance(){ 
+    const sel = document.getElementById('attTermSelect');
+    return sel ? parseInt(sel.value, 10) : 1; 
+  }
+
+  function renderAttendance(){
+    renderAttendanceHead();
+    renderAttendanceBody();
+  }
+
+  // ---------- Render scores table ----------
+  function computeTermTotal(tk, studentId){
+    const rec = scores[tk][studentId];
+    if(!rec) return '';
+    const vals = ['ca1','ca2','ca3','ca4','exam'].map(f=>parseFloat(rec[f]));
+    const sum = vals.reduce((a,b)=> a + (isNaN(b)?0:b), 0);
+    return vals.some(v=>!isNaN(v)) ? sum : '';
+  }
+
+  function renderScoreRowTotals(tr, studentId, tk){
+    const termTotal = computeTermTotal(tk, studentId);
+    const totalCell = tr.querySelector('.total-cell-term');
+    if(totalCell) totalCell.textContent = termTotal;
+
+    if (currentTerm === 2) {
+      const t1Total = computeTermTotal(termKey(1), studentId);
+      const t1Cell = tr.querySelector('.total-cell-t1');
+      if(t1Cell) t1Cell.textContent = t1Total;
+      
+      const cumulCell = tr.querySelector('.total-cell-cumul');
+      if(cumulCell) {
+        if(t1Total !== '' || termTotal !== '') {
+          cumulCell.textContent = (t1Total===''?0:parseFloat(t1Total)) + (termTotal===''?0:parseFloat(termTotal));
+        } else {
+          cumulCell.textContent = '';
+        }
+      }
+    } else if (currentTerm === 3) {
+      const t1Total = computeTermTotal(termKey(1), studentId);
+      const t2Total = computeTermTotal(termKey(2), studentId);
+      
+      const t1Cell = tr.querySelector('.total-cell-t1');
+      if(t1Cell) t1Cell.textContent = t1Total;
+      const t2Cell = tr.querySelector('.total-cell-t2');
+      if(t2Cell) t2Cell.textContent = t2Total;
+
+      const cumulCell = tr.querySelector('.total-cell-cumul');
+      const avgCell = tr.querySelector('.total-cell-avg');
+      
+      const hasAny = (t1Total !== '' || t2Total !== '' || termTotal !== '');
+      if (hasAny && cumulCell && avgCell) {
+         const sum = (t1Total===''?0:parseFloat(t1Total)) + (t2Total===''?0:parseFloat(t2Total)) + (termTotal===''?0:parseFloat(termTotal));
+         cumulCell.textContent = sum;
+         avgCell.textContent = (sum / 3).toFixed(1);
+      } else if (cumulCell && avgCell) {
+         cumulCell.textContent = '';
+         avgCell.textContent = '';
+      }
+    }
+  }
+
+  function renderScores(){
+    const body = document.getElementById('scoreBody');
+    body.innerHTML = '';
+    
+    const theadRow = document.getElementById('scoreHeadRow');
+    let thHtml = `
+      <th class="col-sn">S/N</th>
+      <th class="col-name">Name</th>
+      <th>CA 1 (10)</th>
+      <th>CA 2 (10)</th>
+      <th>CA 3 (10)</th>
+      <th>CA 4 (10)</th>
+      <th>Exam (60)</th>
+      <th>Total (100)</th>
+    `;
+    if(currentTerm === 2) {
+      thHtml += `<th>1st Term</th><th>Cumul. (200)</th>`;
+    } else if (currentTerm === 3) {
+      thHtml += `<th>1st Term</th><th>2nd Term</th><th>Cumul. (300)</th><th>Average</th>`;
+    }
+    theadRow.innerHTML = thHtml;
+
+    const tk = termKey(currentTerm);
+    students.forEach((s, idx)=>{
+      const tr = document.createElement('tr');
+
+      const tdSn = document.createElement('td'); tdSn.className='col-sn'; tdSn.textContent = idx+1;
+      tr.appendChild(tdSn);
+
+      const tdName = document.createElement('td'); tdName.className='col-name';
+      const input = document.createElement('input');
+      input.type='text'; input.className='name-input'; input.placeholder='Student name';
+      input.value = s.name;
+      input.addEventListener('input', ()=>{ 
+        s.name = input.value; 
+        syncNameInputs(); 
+      });
+      tdName.appendChild(input);
+      tr.appendChild(tdName);
+
+      const rec = scores[tk][s.id];
+      ['ca1','ca2','ca3','ca4','exam'].forEach(field=>{
+        const td = document.createElement('td');
+        const inp = document.createElement('input');
+        inp.type='text'; inp.inputMode='decimal'; inp.className='score-input';
+        inp.value = rec[field];
+        inp.addEventListener('input', ()=>{
+          rec[field] = inp.value;
+          renderScoreRowTotals(tr, s.id, tk);
+        });
+        td.appendChild(inp);
+        tr.appendChild(td);
+      });
+
+      const tdTotal = document.createElement('td');
+      tdTotal.className='total-cell total-cell-term';
+      tr.appendChild(tdTotal);
+
+      if (currentTerm === 2) {
+        const t1Td = document.createElement('td'); t1Td.className='total-cell-t1'; tr.appendChild(t1Td);
+        const cumulTd = document.createElement('td'); cumulTd.className='total-cell total-cell-cumul';
+        tr.appendChild(cumulTd);
+      } else if (currentTerm === 3) {
+        const t1Td = document.createElement('td'); t1Td.className='total-cell-t1'; tr.appendChild(t1Td);
+        const t2Td = document.createElement('td'); t2Td.className='total-cell-t2'; tr.appendChild(t2Td);
+        const cumulTd = document.createElement('td'); cumulTd.className='total-cell total-cell-cumul';
+        tr.appendChild(cumulTd);
+        const avgTd = document.createElement('td'); avgTd.className='total-cell total-cell-avg';
+        tr.appendChild(avgTd);
+      }
+
+      renderScoreRowTotals(tr, s.id, tk);
+      body.appendChild(tr);
+    });
+  }
+
+  function syncNameInputs(){
+    const allAttInputs = document.querySelectorAll('#attBody .name-input');
+    const allScoreInputs = document.querySelectorAll('#scoreBody .name-input');
+    students.forEach((s, i)=>{
+      if(allAttInputs[i] && allAttInputs[i].value !== s.name) allAttInputs[i].value = s.name;
+      if(allScoreInputs[i] && allScoreInputs[i].value !== s.name) allScoreInputs[i].value = s.name;
+    });
+  }
+
+  // ---------- Add student ----------
+  function addStudent(){
+    const s = ensureStudent();
+    students.push(s);
+    ensureTermData();
+    renderAttendance();
+    renderScores();
+  }
+  document.getElementById('addStudentBtnAtt').addEventListener('click', addStudent);
+  document.getElementById('addStudentBtnScore').addEventListener('click', addStudent);
+
+  // ---------- CSV export ----------
+  function downloadCsv(filename, rows){
+    const csv = rows.map(r => r.map(cell=>{
+      const v = (cell===undefined||cell===null) ? '' : String(cell);
+      return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+    }).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('exportAttBtn').addEventListener('click', ()=>{
+    const term = currentTermForAttendance();
+    const tk = termKey(term);
+    const header = ['S/N','Name'];
+    const days = ['Mon','Tue','Wed','Thu','Fri'];
+    for(let w=1; w<=WEEKS; w++){
+       for(let d=0; d<5; d++){
+         header.push(`Wk${w}-${days[d]}`);
+       }
+    }
+    const rows = [header];
+    students.forEach((s,idx)=>{
+      const row = [idx+1, s.name];
+      for(let w=0; w<WEEKS; w++){
+        for(let d=0; d<5; d++){
+          const st = attendance[tk][s.id][w*5+d] || '';
+          row.push(st==='present'?'P':st==='absent'?'A':'');
+        }
+      }
+      rows.push(row);
+    });
+    downloadCsv('term'+term+'_attendance.csv', rows);
+  });
+
+  document.getElementById('exportScoreBtn').addEventListener('click', ()=>{
+    const tk = termKey(currentTerm);
+    
+    let header = ['S/N','Name','CA1','CA2','CA3','CA4','Exam','Total'];
+    if(currentTerm === 2){
+      header.push('1st Term', 'Cumul.(200)');
+    } else if (currentTerm === 3) {
+      header.push('1st Term', '2nd Term', 'Cumul.(300)', 'Average');
+    }
+    
+    const rows = [header];
+    students.forEach((s,idx)=>{
+      const rec = scores[tk][s.id];
+      const termTotal = computeTermTotal(tk, s.id);
+      let row = [idx+1, s.name, rec.ca1, rec.ca2, rec.ca3, rec.ca4, rec.exam, termTotal];
+      
+      if(currentTerm === 2){
+        const t1 = computeTermTotal(termKey(1), s.id);
+        const cumul = (t1 !== '' || termTotal !== '') ? ((t1===''?0:parseFloat(t1)) + (termTotal===''?0:parseFloat(termTotal))) : '';
+        row.push(t1, cumul);
+      } else if (currentTerm === 3) {
+        const t1 = computeTermTotal(termKey(1), s.id);
+        const t2 = computeTermTotal(termKey(2), s.id);
+        const hasAny = (t1 !== '' || t2 !== '' || termTotal !== '');
+        if (hasAny) {
+           const sum = (t1===''?0:parseFloat(t1)) + (t2===''?0:parseFloat(t2)) + (termTotal===''?0:parseFloat(termTotal));
+           row.push(t1, t2, sum, (sum/3).toFixed(2));
+        } else {
+           row.push(t1, t2, '', '');
+        }
+      }
+      rows.push(row);
+    });
+    downloadCsv('term'+currentTerm+'_scores.csv', rows);
+  });
+
+  // ---------- n8n Sync ----------
+  document.getElementById('syncBtn').addEventListener('click', async ()=>{
+    const url = document.getElementById('webhookField').value.trim();
+    if(!url){
+      showToast('Please enter your n8n Webhook URL at the top first.');
+      return;
+    }
+
+    const payload = {
+      meta: {
+        year: document.getElementById('yearField').value,
+        className: document.getElementById('classField').value,
+        subject: document.getElementById('subjectField').value,
+        teacher: document.getElementById('teacherField').value,
+        timestamp: new Date().toISOString()
+      },
+      students: students,
+      attendance: attendance,
+      scores: scores
+    };
+
+    const btn = document.getElementById('syncBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Syncing...';
+    btn.style.opacity = '0.7';
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if(response.ok){
+        showToast('Successfully synced to n8n!');
+      } else {
+        showToast('Sync failed: Received error from server.');
+      }
+    } catch(err) {
+      showToast('Sync failed: Could not connect to webhook.');
+      console.error(err);
+    } finally {
+      btn.textContent = originalText;
+      btn.style.opacity = '1';
+    }
+  });
+
+  // ---------- Toast ----------
+  let toastTimer;
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> t.classList.remove('show'), 2600);
+  }
+
+  // ---------- Voice roll call ----------
+  const micBtn = document.getElementById('micBtn');
+  const rollStatus = document.getElementById('rollStatus');
+  let recognition = null;
+  let listening = false;
+
+  function normalize(str){
+    return str.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
+  }
+
+  function findStudentByVoice(transcript){
+    const norm = normalize(transcript);
+    const words = norm.split(' ').filter(Boolean);
+    let best = null, bestLen = 0;
+    students.forEach(s=>{
+      if(!s.name) return;
+      const sn = normalize(s.name);
+      if(!sn) return;
+      const nameTokens = sn.split(' ').filter(Boolean);
+      nameTokens.forEach(tok=>{
+        if(tok.length>=3 && norm.includes(tok) && tok.length>bestLen){
+          best = s; bestLen = tok.length;
+        }
+      });
+      if(norm.includes(sn) && sn.length>bestLen){
+        best = s; bestLen = sn.length;
+      }
+    });
+    return best;
+  }
+
+  function detectMark(transcript){
+    const norm = normalize(transcript);
+    if(/\babsent\b/.test(norm)) return 'absent';
+    if(/\bpresent\b|\bhere\b/.test(norm)) return 'present';
+    return null;
+  }
+
+  function markAttendanceFor(student, state){
+    const tk = termKey(currentTermForAttendance());
+    const w = parseInt(document.getElementById('weekSelect').value,10);
+    const d = parseInt(document.getElementById('daySelect').value,10);
+    const dayIndex = w * 5 + d;
+    attendance[tk][student.id][dayIndex] = state;
+    
+    const rows = document.querySelectorAll('#attBody tr');
+    const idx = students.indexOf(student);
+    if(rows[idx]){
+      const cell = rows[idx].querySelectorAll('.att-cell')[dayIndex];
+      if(cell){ 
+        cell.dataset.state = state;
+        cell.querySelector('.mark').textContent = markSymbol(state);
+        cell.classList.add('just-marked'); 
+        setTimeout(()=>cell.classList.remove('just-marked'), 650); 
+      }
+    }
+  }
+
+  function setupRecognition(){
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SpeechRecognition){
+      rollStatus.innerHTML = 'Voice recognition is not supported in this browser. Try Chrome on desktop or Android.';
+      micBtn.disabled = true;
+      micBtn.style.opacity = 0.4;
+      return;
+    }
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-NG';
+
+    recognition.onresult = (event)=>{
+      const result = event.results[event.results.length-1];
+      const transcript = result[0].transcript;
+      const student = findStudentByVoice(transcript);
+      const mark = detectMark(transcript);
+
+      if(student && mark){
+        markAttendanceFor(student, mark);
+        rollStatus.innerHTML = 'Heard: <span class="heard">"'+transcript.trim()+'"</span> → '+student.name+' marked '+mark+'.';
+        showToast(student.name+' marked '+(mark==='present'?'Present':'Absent'));
+      } else if(student && !mark){
+        rollStatus.innerHTML = 'Heard <span class="heard">"'+transcript.trim()+'"</span> — got the name but not present/absent. Try again.';
+      } else if(mark && !student){
+        rollStatus.innerHTML = 'Heard <span class="heard">"'+transcript.trim()+'"</span> — could not match a student name. Check spelling in the name field.';
+      } else {
+        rollStatus.innerHTML = 'Heard <span class="heard">"'+transcript.trim()+'"</span> — say it like "Samuel, present".';
+      }
+    };
+
+    recognition.onerror = (e)=>{
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        rollStatus.textContent = 'Microphone access was blocked. Allow microphone permission and try again.';
+      } else if(e.error === 'no-speech'){
+        // keep listening silently
+      } else {
+        rollStatus.textContent = 'Voice error: '+e.error+'. Tap the mic to try again.';
+      }
+    };
+
+    recognition.onend = ()=>{
+      if(listening){
+        try{ recognition.start(); }catch(e){}
+      }
+    };
+  }
+
+  setupRecognition();
+
+  micBtn.addEventListener('click', ()=>{
+    if(!recognition) return;
+    if(!listening){
+      listening = true;
+      micBtn.classList.add('listening');
+      rollStatus.textContent = 'Listening… say a student\'s name then "present" or "absent".';
+      try{ recognition.start(); }catch(e){}
+    } else {
+      listening = false;
+      micBtn.classList.remove('listening');
+      rollStatus.textContent = 'Mic is off. Tap to start.';
+      try{ recognition.stop(); }catch(e){}
+    }
+  });
+
+  // ---------- Initial render ----------
+  renderAttendance();
+  renderScores();
+})();
+</script>
+</body>
+</html>

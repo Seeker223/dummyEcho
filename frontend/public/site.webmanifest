@@ -1,0 +1,24 @@
+{
+  "name": "EmergencyEcho",
+  "short_name": "EmergencyEcho",
+  "description": "Voice AI emergency health assistant for patients, doctors, nurses, and healthcare partners.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E60000",
+  "icons": [
+    {
+      "src": "/emergencyecho.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/emergencyecho.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

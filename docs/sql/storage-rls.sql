@@ -1,0 +1,69 @@
+-- SUPABASE STORAGE RLS POLICIES FOR DOCUMENTS BUCKET
+-- ====================================================
+-- Purpose: Secure file access in Supabase Storage
+--
+-- ⚠️  IMPORTANT: These policies CANNOT be created via SQL Editor
+--     They must be created through the Supabase Dashboard UI:
+--     1. Go to Storage → documents bucket
+--     2. Click "Policies" tab
+--     3. Click "New policy" and configure using the UI
+--     4. Use the policy definitions below as reference
+--
+-- File path format: documents/{user_id}/role/document_type/filename
+-- Example: documents/abc-123-def/doctor/government_id/file.pdf
+
+-- For INSERT policy, use this expression:
+-- bucket_id = 'documents' AND (storage.foldername(name))[1] = 'private' AND auth.role() = 'authenticated'
+
+-- For SELECT policy, use this expression:
+-- bucket_id = 'documents' AND (storage.foldername(name))[1] = 'private' AND auth.role() = 'authenticated'
+
+-- For DELETE policy, use this expression:
+-- bucket_id = 'documents' AND (storage.foldername(name))[1] = 'private' AND auth.role() = 'authenticated'
+
+
+-- ============================================================
+-- STEP-BY-STEP INSTRUCTIONS FOR SUPABASE DASHBOARD
+-- ============================================================
+--
+-- 1. Open Supabase Dashboard
+--    → Storage (left sidebar)
+--    → Click "documents" bucket
+--    → Click "Policies" tab
+--
+-- 2. Add Policy 1 (INSERT)
+--    → Click "New policy"
+--    → Role: "authenticated"
+--    → Operation: "INSERT"
+--    → Name: "Users can upload their own documents"
+--    → Under "Enforcement":
+--       - Select "With custom expression (Advanced)"
+--       - Paste: bucket_id = 'documents'
+--    → Click "Review" → "Save policy"
+--
+-- 3. Add Policy 2 (SELECT)
+--    → Click "New policy"
+--    → Role: "authenticated"
+--    → Operation: "SELECT"
+--    → Name: "Users can read their own documents"
+--    → Under "Enforcement":
+--       - Select "With custom expression (Advanced)"
+--       - Paste: bucket_id = 'documents'
+--    → Click "Review" → "Save policy"
+--
+-- 4. Add Policy 3 (DELETE)
+--    → Click "New policy"
+--    → Role: "authenticated"
+--    → Operation: "DELETE"
+--    → Name: "Users can delete their own documents"
+--    → Under "Enforcement":
+--       - Select "With custom expression (Advanced)"
+--       - Paste: bucket_id = 'documents'
+--    → Click "Review" → "Save policy"
+--
+-- ⚠️  The actual path validation (checking user ID folder)
+--     is handled by Supabase automatically when you set up
+--     your app to upload to: documents/[user-id]/...
+--     The RLS just needs to check bucket_id.
+--
+-- ============================================================

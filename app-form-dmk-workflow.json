@@ -1,0 +1,111 @@
+{
+  "name": "App Form DMK Submission",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "app-dmk-submit",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "app-dmk-webhook-id-replace-me"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\n// Map frontend kit payload to patients table columns\nconst mappedData = {\n  user_id: body.user_id,\n  submission_key: body.submission_key,\n  full_name: body.fullName || body.name,\n  date_of_birth: body.dob,\n  gender: body.sex || body.gender,\n  blood_type: body.bloodType,\n  genotype: body.genotype,\n\n  // Arrays\n  conditions: body.conditionsList || [],\n  surgeries: body.surgeriesList || [],\n  drug_allergies: body.drugAllergies || [],\n  food_allergies: body.foodAllergies || [],\n  rx_meds: body.rxMeds || [],\n  otc_meds: body.otcMeds || [],\n  herbal_meds: body.herbalMeds || [],\n  immunisations: body.vaccines || [],\n  mental_history: body.mentalHistory || [],\n  cognitive: body.cognitive || [],\n  directives: body.directives || [],\n  fam_history: body.familyHistory || [],\n  assistive: body.assistive || [],\n  substance_use: body.substanceUse || [],\n  pets_type: body.petsType || [],\n\n  // Strings / Enums\n  cond_other: body.conditionsOther || '',\n  surg_other: body.surgeriesOther || '',\n  meds_notes: body.medsNotes || '',\n  admit: body.admit || '',\n  admit_details: body.admitDetails || '',\n  transfusion: body.transfusion || '',\n  transfusion_details: body.transfusionDetails || '',\n  imm_notes: body.vaccineNotes || '',\n  mental_current: body.mentalCurrent || '',\n  mental_notes: body.mentalNotes || '',\n  dir_notes: body.dirNotes || '',\n  fam_history_notes: body.famHistoryNotes || '',\n  assistive_notes: body.assistiveNotes || '',\n  smoking: body.smoking || '',\n  alcohol: body.alcohol || '',\n  substance_details: body.substanceDetails || '',\n  diet: body.diet || '',\n  exercise_freq: body.exerciseFreq || '',\n  occupation_cat: body.occupationCat || '',\n  living_situation: body.livingSituation || '',\n  pets: body.pets || '',\n  lifestyle_notes: body.lifestyleNotes || '',\n  obgyn_notes: body.gynComplaints || '',\n  pregnancy_complications: body.pregnancyComplications || []\n};\n\n// Strip empty strings and empty arrays to let DB defaults handle it (or preserve existing data if upserting)\nconst cleanData = {};\nfor (const [k, v] of Object.entries(mappedData)) {\n  if (Array.isArray(v)) {\n    if (v.length > 0) cleanData[k] = v;\n  } else if (v !== '' && v !== null && v !== undefined) {\n    cleanData[k] = v;\n  }\n}\n\nreturn [{ json: cleanData }];"
+      },
+      "id": "map-payload-node",
+      "name": "Map Payload to DB Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "tableId": "patients",
+        "matchColumns": "user_id",
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "supabase-upsert-node",
+      "name": "Upsert Patient in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "rHuygSCFflArOtcb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Digital Medical Kit updated via App Form\"\n}",
+        "options": {}
+      },
+      "id": "respond-to-webhook-node",
+      "name": "Respond to App",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Map Payload to DB Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Payload to DB Schema": {
+      "main": [
+        [
+          {
+            "node": "Upsert Patient in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Patient in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Respond to App",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

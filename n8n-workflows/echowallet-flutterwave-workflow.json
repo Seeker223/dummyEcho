@@ -1,0 +1,418 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "echowallet",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "27da9531-cbf9-4ee5-8088-d46f37984f9e",
+      "name": "EchoWallet Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        128
+      ],
+      "webhookId": "344b3d92-56b4-4d6d-ad68-b9fd8f418818"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  action: body.action,\n  user_id: body.user_id,\n  amount: body.amount,\n  currency: body.currency || 'NGN',\n  reference: body.reference || `EE_TXN_${Date.now()}`,\n  plan: body.plan,\n  body\n}}];"
+      },
+      "id": "a424333f-9858-47b5-b4a7-1f89570f47b7",
+      "name": "Parse Wallet Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "credit",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "fe6d64d0-77dd-45e0-84af-146188b42799",
+      "name": "Credit Wallet?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "profiles",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "=eq",
+              "keyValue": "={{ $('Parse Wallet Action').first().json.user_id }}"
+            }
+          ]
+        }
+      },
+      "id": "e496789d-7d7c-46e3-8c3b-3dae43b76d71",
+      "name": "Get Current Balance",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const wallet = $('Get Current Balance').first().json;\nconst action = $('Parse Wallet Action').first().json.action;\nconst amount = parseFloat($('Parse Wallet Action').first().json.amount);\nconst currentBalance = parseFloat(wallet.wallet_balance || wallet.walletBalanceNgn || 0);\n\nlet newBalance;\nif (action === 'credit') {\n  newBalance = currentBalance + amount;\n} else if (action === 'debit') {\n  if (currentBalance < amount) throw new Error('Insufficient balance');\n  newBalance = currentBalance - amount;\n}\n\nreturn [{ json: {\n  user_id: $('Parse Wallet Action').first().json.user_id,\n  wallet_id: wallet.id,\n  old_balance: currentBalance,\n  new_balance: newBalance,\n  amount,\n  action\n}}];"
+      },
+      "id": "f0449bc3-4137-41de-9e90-2b71374b53e6",
+      "name": "Calculate New Balance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "profiles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "=eq",
+              "keyValue": "={{ $json.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "wallet_balance",
+              "fieldValue": "={{ $json.new_balance }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "15f02921-a719-4b1a-a396-35edc6a8d77f",
+      "name": "Update Wallet Balance",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "transactions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Parse Wallet Action').first().json.user_id }}"
+            },
+            {
+              "fieldId": "type",
+              "fieldValue": "={{ $('Parse Wallet Action').first().json.action }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('Parse Wallet Action').first().json.amount }}"
+            },
+            {
+              "fieldId": "currency",
+              "fieldValue": "={{ $('Parse Wallet Action').first().json.currency }}"
+            },
+            {
+              "fieldId": "reference",
+              "fieldValue": "={{ $('Parse Wallet Action').first().json.reference }}"
+            },
+            {
+              "fieldId": "balance_before",
+              "fieldValue": "={{ $('Calculate New Balance').first().json.old_balance }}"
+            },
+            {
+              "fieldId": "balance_after",
+              "fieldValue": "={{ $('Calculate New Balance').first().json.new_balance }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "success"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "c6d896a6-7c13-4946-b2c0-94dc4370b03c",
+      "name": "Log Transaction",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        448,
+        144
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Parse Wallet Action').first().json.action }}",
+              "rightValue": "upgrade_plan",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "7350adef-47da-4fb4-b7eb-a3153f8dcae6",
+      "name": "Plan Upgrade?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        0,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "profiles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "=eq",
+              "keyValue": "={{ $('Parse Wallet Action').first().json.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "plan",
+              "fieldValue": "={{ $('Parse Wallet Action').first().json.plan }}"
+            },
+            {
+              "fieldId": "plan_updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "fdb89075-4f00-44dd-bbe9-17675514025c",
+      "name": "Upgrade User Plan",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const action = $('Parse Wallet Action').first().json.action;\nlet result = { success: true, action };\n\nif (action === 'credit' || action === 'debit') {\n  const bal = $('Calculate New Balance').first().json;\n  result.old_balance = bal.old_balance;\n  result.new_balance = bal.new_balance;\n  result.message = `Wallet ${action}ed successfully`;\n} else if (action === 'upgrade_plan') {\n  result.plan = $('Parse Wallet Action').first().json.plan;\n  result.message = 'Plan upgraded successfully';\n}\n\nreturn [{ json: result }];"
+      },
+      "id": "f6b7146d-79ad-488d-a0df-f1bfb3257671",
+      "name": "Build Wallet Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "bd6333f9-2a55-4b8e-9256-917d75ed9c83",
+      "name": "Respond to EchoWallet",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        880,
+        128
+      ]
+    }
+  ],
+  "connections": {
+    "EchoWallet Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Wallet Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Wallet Action": {
+      "main": [
+        [
+          {
+            "node": "Credit Wallet?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Credit Wallet?": {
+      "main": [
+        [
+          {
+            "node": "Get Current Balance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Plan Upgrade?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Balance": {
+      "main": [
+        [
+          {
+            "node": "Calculate New Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate New Balance": {
+      "main": [
+        [
+          {
+            "node": "Update Wallet Balance",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Transaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Wallet Balance": {
+      "main": [
+        [
+          {
+            "node": "Build Wallet Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Upgrade?": {
+      "main": [
+        [
+          {
+            "node": "Upgrade User Plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Wallet Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upgrade User Plan": {
+      "main": [
+        [
+          {
+            "node": "Build Wallet Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Wallet Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to EchoWallet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "389998397733f688a676af7403bd913a5673d749385e7a5b5c4ef925a577f36d"
+  }
+}

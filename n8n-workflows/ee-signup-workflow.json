@@ -1,0 +1,1023 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"error\": \"A user with this email address has already been registered.\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -1648,
+        1408
+      ],
+      "id": "bfb14793-5f94-4356-a159-1fc3f668bbdf",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1138d8cf-a84c-4712-8550-35ae79d77212",
+              "leftValue": "={{ $json.error.message }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1840,
+        1664
+      ],
+      "id": "3df960fb-a7e3-44f6-bf92-67c77cd8c36c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "443b1d07-4e42-42c9-aa92-e31a4421b828",
+      "name": "Respond to Vercel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        192,
+        1664
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// BUG FIX: Build Signup Response is now triggered DIRECTLY from Save Base Profile\n// (in parallel with email sending). This means Vercel always gets a response\n// even if the Gmail node fails.\nconst baseProfile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    success:   true,\n    user_id:   baseProfile.user_id,\n    echo_id:   baseProfile.submission_key,\n    role:      baseProfile.role,\n    email:     baseProfile.email,\n    full_name: baseProfile.full_name,\n    message:   `Account created successfully. We've sent a 6-digit verification code to your email.`\n  }\n}];"
+      },
+      "id": "33002b35-7b62-4775-a70e-657ddb76d9ac",
+      "name": "Build Signup Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        1664
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -80,
+        1856
+      ],
+      "id": "b81320f3-c212-483a-aa12-4a39a9a0212a",
+      "name": "Send a message",
+      "webhookId": "5c27f762-dff2-4d49-9c41-a88df7e122e4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "khSQhvrRgtRTriig",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a clean verification email for the new signup flow\nconst profile = $('Build Base Profile Data').first().json;\nconst dashboardUrl = 'https://emergencyecho.org/app/dashboard';\nconst verificationUrl = 'https://emergencyecho.org/verify?token=' + encodeURIComponent(profile.verification_token || '') + '&email=' + encodeURIComponent(profile.email || '');\n\nconst htmlBody = '<!doctype html><html lang=\"en\"><body style=\"font-family:Arial,sans-serif;background:#f7f7f7;margin:0;padding:24px;\"><div style=\"max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:24px;\"><h1 style=\"margin:0 0 12px;color:#c8102e;\">Welcome to EmergencyEcho</h1><p>Hello ' + (profile.full_name || 'there') + ',</p><p>Your verification code is <strong>' + (profile.verification_token || '') + '</strong>.</p><p>Your EmergencyEcho ID is <strong>' + (profile.submission_key || 'Pending') + '</strong>.</p><p><a href=\"' + verificationUrl + '\">Verify now</a> · <a href=\"' + dashboardUrl + '\">Go to dashboard</a></p></div></body></html>';\nconst text = 'Hi ' + (profile.full_name || 'there') + '\nYour verification code is ' + (profile.verification_token || '') + '.\nYour EmergencyEcho ID is ' + (profile.submission_key || 'Pending') + '.\nVerify: ' + verificationUrl + '\nDashboard: ' + dashboardUrl;\nreturn [{ json: { to: profile.email, subject: 'Welcome to EmergencyEcho - Verify Your Email', html: htmlBody, text } }];"
+      },
+      "id": "d9186c66-6e0a-4181-9d96-9d284b0bc4a5",
+      "name": "Build Welcome Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        1856
+      ]
+    },    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "profiles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "=eq",
+              "keyValue": "={{ $('Build Base Profile Data').first().json.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "wallet_balance",
+              "fieldValue": "=0"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "9eda6263-6ac4-4d77-bfd7-b0e0280d4ccb",
+      "name": "Create User Wallet",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        1664
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "partners",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "business_name",
+              "fieldValue": "={{ $json.business_name }}"
+            },
+            {
+              "fieldId": "business_category",
+              "fieldValue": "={{ $json.business_category }}"
+            },
+            {
+              "fieldId": "business_city",
+              "fieldValue": "={{ $json.business_city }}"
+            },
+            {
+              "fieldId": "business_state",
+              "fieldValue": "={{ $json.business_state }}"
+            },
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "business_address",
+              "fieldValue": "={{ $json.business_address }}"
+            },
+            {
+              "fieldId": "business_registration_number",
+              "fieldValue": "={{ $json.business_registration_number }}"
+            }
+          ]
+        }
+      },
+      "id": "b5c26904-9050-43a4-9147-8c1d2491a931",
+      "name": "Save Partner Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        1888
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a clean verification email for the new signup flow\nconst profile = $('Build Base Profile Data').first().json;\nconst dashboardUrl = 'https://emergencyecho.org/app/dashboard';\nconst verificationUrl = 'https://emergencyecho.org/verify?token=' + encodeURIComponent(profile.verification_token || '') + '&email=' + encodeURIComponent(profile.email || '');\n\nconst htmlBody = '<!doctype html>' +\n  '<html lang=\"en\">' +\n  '<body style=\"font-family:Arial,sans-serif;background:#f7f7f7;margin:0;padding:24px;\">' +\n  '<div style=\"max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:24px;\">' +\n  '<h1 style=\"margin:0 0 12px;color:#c8102e;\">Welcome to EmergencyEcho</h1>' +\n  '<p>Hello ' + (profile.full_name || 'there') + ',</p>' +\n  '<p>Your verification code is <strong>' + (profile.verification_token || '') + '</strong>.</p>' +\n  '<p>Your EmergencyEcho ID is <strong>' + (profile.submission_key || 'Pending') + '</strong>.</p>' +\n  '<p><a href=\"' + verificationUrl + '\">Verify now</a> · <a href=\"' + dashboardUrl + '\">Go to dashboard</a></p>' +\n  '</div>' +\n  '</body>' +\n  '</html>';\n\nconst text = 'Hi ' + (profile.full_name || 'there') + '\nYour verification code is ' + (profile.verification_token || '') + '.\nYour EmergencyEcho ID is ' + (profile.submission_key || 'Pending') + '.\nVerify: ' + verificationUrl + '\nDashboard: ' + dashboardUrl;\n\nreturn [{\n  json: {\n    to: profile.email,\n    subject: 'Welcome to EmergencyEcho - Verify Your Email',\n    html: htmlBody,\n    text: text,\n  }\n}];"
+      },
+      "id": "1aebe0b0-115d-47f6-a2af-5033047fb076",
+      "name": "Build Partner Business Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "nurses",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $json.full_name }}"
+            },
+            {
+              "fieldId": "license_number",
+              "fieldValue": "={{ $json.license_number }}"
+            },
+            {
+              "fieldId": "certification",
+              "fieldValue": "={{ $json.certification }}"
+            },
+            {
+              "fieldId": "department",
+              "fieldValue": "={{ $json.department }}"
+            },
+            {
+              "fieldId": "state",
+              "fieldValue": "={{ $json.state }}"
+            },
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "hospital_affiliation",
+              "fieldValue": "={{ $json.hospital_affiliation }}"
+            },
+            {
+              "fieldId": "years_of_experience",
+              "fieldValue": "={{ $json.years_of_experience }}"
+            },
+            {
+              "fieldId": "government_id",
+              "fieldValue": "={{ $json.government_id }}"
+            },
+            {
+              "fieldId": "government_id_status",
+              "fieldValue": "={{ $json.government_id_status }}"
+            },
+            {
+              "fieldId": "annual_license",
+              "fieldValue": "={{ $json.annual_license }}"
+            },
+            {
+              "fieldId": "annual_license_status",
+              "fieldValue": "={{ $json.annual_license_status }}"
+            },
+            {
+              "fieldId": "nursing_degree",
+              "fieldValue": "={{ $json.nursing_degree }}"
+            },
+            {
+              "fieldId": "nursing_degree_status",
+              "fieldValue": "={{ $json.nursing_degree_status }}"
+            }
+          ]
+        }
+      },
+      "id": "5525a802-d64c-47cf-b4d8-6f44141f5212",
+      "name": "Save Nurse Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        1696
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Signup Webhook').first().json.body || $('Signup Webhook').first().json;\nconst baseProfile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    user_id:          baseProfile.user_id,\n    submission_key:   baseProfile.submission_key,\n    full_name:        baseProfile.full_name,\n    license_number:   body.license_number || body.license_id || null,\n    certification:    body.certification || null,\n    department:       body.department || body.specialization || null,\n    state:            baseProfile.state,\n    phone_number:     body.phone_number || null,\n    hospital_affiliation: body.hospital_affiliation || null,\n    years_of_experience:  body.years_of_experience || null,\n    government_id:          body.government_id || null,\n    government_id_status:   body.government_id_status || 'pending',\n    annual_license:         body.annual_license || null,\n    annual_license_status:  body.annual_license_status || 'pending',\n    nursing_degree:         body.nursing_degree || null,\n    nursing_degree_status:  body.nursing_degree_status || 'pending',\n    verified_by_admin: false,\n    verification_notes: null\n  }\n}];"
+      },
+      "id": "751a76ff-57eb-42af-93cf-82dd835cdb0c",
+      "name": "Build Nurse Profile Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        1696
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "doctors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "submission_key",
+              "fieldValue": "={{ $json.submission_key }}"
+            },
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $json.full_name }}"
+            },
+            {
+              "fieldId": "license_number",
+              "fieldValue": "={{ $json.license_number }}"
+            },
+            {
+              "fieldId": "specialization",
+              "fieldValue": "={{ $json.specialization }}"
+            },
+            {
+              "fieldId": "state",
+              "fieldValue": "={{ $json.state }}"
+            },
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.phone_number }}"
+            },
+            {
+              "fieldId": "hospital_affiliation",
+              "fieldValue": "={{ $json.hospital_affiliation }}"
+            },
+            {
+              "fieldId": "years_of_experience",
+              "fieldValue": "={{ $json.years_of_experience }}"
+            },
+            {
+              "fieldId": "government_id",
+              "fieldValue": "={{ $json.government_id }}"
+            },
+            {
+              "fieldId": "government_id_status",
+              "fieldValue": "={{ $json.government_id_status }}"
+            },
+            {
+              "fieldId": "annual_license",
+              "fieldValue": "={{ $json.annual_license }}"
+            },
+            {
+              "fieldId": "annual_license_status",
+              "fieldValue": "={{ $json.annual_license_status }}"
+            },
+            {
+              "fieldId": "medical_degree",
+              "fieldValue": "={{ $json.medical_degree }}"
+            },
+            {
+              "fieldId": "medical_degree_status",
+              "fieldValue": "={{ $json.medical_degree_status }}"
+            },
+            {
+              "fieldId": "registration_certificate",
+              "fieldValue": "={{ $json.registration_certificate }}"
+            },
+            {
+              "fieldId": "registration_certificate_status",
+              "fieldValue": "={{ $json.registration_certificate_status }}"
+            }
+          ]
+        }
+      },
+      "id": "e7b5761f-7c47-4917-b576-a438688701b2",
+      "name": "Save Doctor Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        1488
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Signup Webhook').first().json.body || $('Signup Webhook').first().json;\nconst baseProfile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    user_id:          baseProfile.user_id,\n    submission_key:   baseProfile.submission_key,\n    full_name:        baseProfile.full_name,\n    license_number:   body.license_number || body.license_id || null,\n    specialization:   body.specialization || null,\n    state:            baseProfile.state,\n    phone_number:     body.phone_number || null,\n    hospital_affiliation: body.hospital_affiliation || null,\n    years_of_experience:  body.years_of_experience || null,\n    bio:              body.bio || null,\n    government_id:              body.government_id || null,\n    government_id_status:       body.government_id_status || 'pending',\n    annual_license:             body.annual_license || null,\n    annual_license_status:      body.annual_license_status || 'pending',\n    medical_degree:             body.medical_degree || null,\n    medical_degree_status:      body.medical_degree_status || 'pending',\n    registration_certificate:        body.registration_certificate || null,\n    registration_certificate_status: body.registration_certificate_status || 'pending',\n    verified_by_admin: false,\n    verification_notes: null\n  }\n}];"
+      },
+      "id": "e632e182-6dea-4e45-a9e9-d3acd74a239f",
+      "name": "Build Doctor Profile Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        1488
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "patients",
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "5aca5242-94f2-4d50-9f35-dda2bdc096c5",
+      "name": "Save Patient Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        1232
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// BUG FIX: Was using data.id (wrong key) and sub_${data.id} (wrong key format).\n// Now reads from Build Base Profile Data directly for correct user_id and submission_key.\nconst baseProfile = $('Build Base Profile Data').first().json;\n\nreturn [{\n  json: {\n    user_id:        baseProfile.user_id,\n    submission_key: baseProfile.submission_key,   // Correct EE_<hex32> format\n    full_name:      baseProfile.full_name || null,\n\n    // Identity & Demographics\n    dob:              null,\n    gender:           null,\n    blood_group:      null,\n    genotype:         null,\n    language:         null,\n    marital_status:   null,\n    religion:         null,\n    nationality:      null,\n    address:          null,\n    occupation_cat:   null,\n    living_situation: null,\n\n    // Emergency Contact\n    ec_name:         null,\n    ec_phone:        null,\n    ec_secondary:    null,\n    ec_relationship: null,\n\n    // Medical Conditions\n    conditions:        [],\n    cond_other:        null,\n    fam_history:       [],\n    fam_history_notes: null,\n\n    // Surgeries\n    surgeries:  [],\n    surg_other: null,\n\n    // Medications\n    rx_meds:     [],\n    otc_meds:    [],\n    herbal_meds: [],\n    meds_notes:  null,\n\n    // Allergies\n    drug_allergies:  [],\n    food_allergies:  [],\n    other_allergies: null,\n\n    // Immunisations\n    immunisations: [],\n    imm_notes:     null,\n\n    // Transfusion\n    transfusion:         null,\n    transfusion_details: null,\n\n    // Mental Health\n    mental_history: [],\n    mental_current: null,\n    cognitive:      [],\n    mental_notes:   null,\n\n    // Directives\n    directives: [],\n    dir_notes:  null,\n\n    // Admission History\n    admit:         null,\n    admit_details: null,\n\n    // Lifestyle\n    smoking:           null,\n    alcohol:           null,\n    substance_use:     [],\n    substance_details: null,\n    diet:              null,\n    exercise_freq:     null,\n    pets:              null,\n    pets_type:         [],\n    pets_other:        null,\n    lifestyle_notes:   null,\n\n    // Assistive Devices\n    assistive:       [],\n    assistive_notes: null,\n\n    // OB/GYN\n    gravida:                 null,\n    para:                    null,\n    miscarriages:            null,\n    last_menstrual_period:   null,\n    menstrual_regularity:    null,\n    contraceptive_use:       null,\n    menopause:               null,\n    pregnancy_complications: [],\n    obgyn_notes:             null\n  }\n}];"
+      },
+      "id": "d6a119dc-0afe-4d48-b598-9d5893ee93c6",
+      "name": "Build Patient Medical Kit Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        1232
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Build Base Profile Data').first().json.role }}",
+              "rightValue": "partner",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "724df25a-e154-4150-bd0f-1dc0cc8c6be6",
+      "name": "Is Partner?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        1936
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Build Base Profile Data').first().json.role }}",
+              "rightValue": "nurse",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "9d5ca678-3495-46db-9725-c3a757db4fdd",
+      "name": "Is Nurse?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        1744
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Build Base Profile Data').first().json.role }}",
+              "rightValue": "doctor",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "89be7a87-cca1-4fb4-a6a2-3b9059256e96",
+      "name": "Is Doctor?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        1536
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('Build Base Profile Data').first().json.role }}",
+              "rightValue": "patient",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "ffdc1d0b-46a7-47c4-af6b-94ef29373e71",
+      "name": "Is Patient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        1344
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "email_verifications",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_id",
+              "fieldValue": "={{ $('Build Base Profile Data').first().json.user_id }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $('Build Base Profile Data').first().json.email }}"
+            },
+            {
+              "fieldId": "token",
+              "fieldValue": "={{ $('Build Base Profile Data').first().json.verification_token }}"
+            },
+            {
+              "fieldId": "is_used",
+              "fieldValue": "=false"
+            },
+            {
+              "fieldId": "expires_at",
+              "fieldValue": "={{ new Date(Date.now() + 10 * 60 * 1000).toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "dc39f001-1132-4344-8c41-c43e7bf9c183",
+      "name": "Save Verification Token",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -992,
+        1136
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      },
+      "notes": "BUG FIX: Was missing tableId and fieldsUi entirely. Now saves to email_verifications with a 10-min expiry."
+    },
+    {
+      "parameters": {
+        "tableId": "profiles",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.email }}"
+            },
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $json.full_name }}"
+            },
+            {
+              "fieldId": "role",
+              "fieldValue": "={{ $json.role }}"
+            },
+            {
+              "fieldId": "phone",
+              "fieldValue": "={{ $json.phone }}"
+            },
+            {
+              "fieldId": "verified_at",
+              "fieldValue": "={{ $json.verified_at }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $json.created_at }}"
+            }
+          ]
+        }
+      },
+      "id": "ddf32afb-fa07-4764-9c54-eb57651d6045",
+      "name": "Save Base Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1216,
+        1664
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kGdzC3Cx7P7TTZiv",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map Build Base Profile Data output ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ profiles table schema\nconst inputData = items;\n\nconst mappedProfiles = inputData.map(item => {\n  const data = item.json;\n  return {\n    json: {\n      id:         data.user_id,   // profiles.id is the auth user uuid\n      email:      data.email,\n      full_name:  data.full_name,\n      role:       data.role,\n      phone:      data.phone ?? null,\n      verified_at: null,          // set after OTP verified\n      created_at: data.created_at ?? undefined,\n      updated_at: data.updated_at ?? undefined\n    }\n  };\n});\n\nreturn mappedProfiles;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1408,
+        1664
+      ],
+      "id": "7cfffb53-1b65-4832-b5e7-5f46ddd337d1",
+      "name": "Map to Profiles Schema"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map Build Base Profile Data output to profiles table schema\nconst inputData = items;\n\nconst mappedProfiles = inputData.map(item => {\n  const data = item.json;\n  return {\n    json: {\n      id:         data.user_id,   // profiles.id is the auth user uuid\n      email:      data.email,\n      full_name:  data.full_name,\n      username:   data.username ?? null,\n      title:      data.title ?? null,\n      role:       data.role,\n      phone:      data.phone ?? null,\n      verification_status: data.verification_status ?? 'pending',\n      email_verified: Boolean(data.email_verified ?? false),\n      is_verified:  Boolean(data.is_verified ?? false),\n      verified_at:  data.verified_at ?? null,\n      auth_source:  data.auth_source ?? 'n8n',\n      account_status: data.account_status ?? 'pending_verification',\n      submission_key: data.submission_key ?? null,\n      created_at: data.created_at ?? undefined,\n      updated_at: data.updated_at ?? undefined\n    }\n  };\n});\n\nreturn mappedProfiles;"
+      },
+      "id": "0ced173f-c73c-4758-9c00-29b0a25ebce7",
+      "name": "Build Base Profile Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1616,
+        1664
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://iscfomhsectitvdnbidp.supabase.co/auth/v1/admin/users",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzY2ZvbWhzZWN0aXR2ZG5iaWRwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTk2MDk2NSwiZXhwIjoyMDk1NTM2OTY1fQ.TaYWVD2Ogjdefev0MjT9ZV-ECM5dJ-_psSaDbLniHCQ"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzY2ZvbWhzZWN0aXR2ZG5iaWRwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTk2MDk2NSwiZXhwIjoyMDk1NTM2OTY1fQ.TaYWVD2Ogjdefev0MjT9ZV-ECM5dJ-_psSaDbLniHCQ"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "2d639eb6-2eef-4f07-ba3f-62f878c09759",
+      "name": "Create Auth User in Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -2000,
+        1664
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "BUG FIX: Removed erroneous leading '= ' from jsonBody expression. Added Content-Type header."
+    },
+    {
+      "parameters": {
+        "jsCode": "// BUG FIX #1: Extract verification_token and phone from body\n// BUG FIX #2: Build Base Profile now reads from auth response (Create Auth User) AND original body\nconst body = $('Signup Webhook').first().json.body || $('Signup Webhook').first().json;\nconst authData = $('Create Auth User in Supabase').first().json;\n\nfunction generateHex(length) {\n  const chars = '0123456789abcdef';\n  let hex = '';\n  for (let i = 0; i < length; i++) {\n    hex += chars[Math.floor(Math.random() * 16)];\n  }\n  return hex;\n}\n\nfunction generateSubmissionKey() {\n  return 'EE_' + generateHex(32);\n}\n\nconst user_id    = authData.id || body.user_id || body.record?.id;\nconst email      = body.email  || body.record?.email;\nconst full_name  = body.full_name || body.record?.user_metadata?.full_name || '';\nconst username   = body.username || '';\nconst title      = body.title    || '';\nconst state      = body.state    || '';\nconst phone      = body.phone    || body.phone_number || null;  // FIX: capture phone\nconst role       = body.role     || 'user';\nconst submission_key     = generateSubmissionKey();\nconst created_at         = new Date().toISOString();\nconst verification_status = body.verification_status || 'pending';\nconst email_verified = Boolean(body.email_verified ?? false);\nconst is_verified = Boolean(body.is_verified ?? false);\nconst verified_at = body.verified_at || null;\nconst auth_source = body.auth_source || 'n8n';\nconst account_status = body.account_status || 'pending_verification';\n// FIX: Generate 6-digit OTP here so it's available for both email and DB save\nconst verification_token = Math.floor(100000 + Math.random() * 900000).toString();\n\nreturn [{\n  json: {\n    user_id,\n    email,\n    full_name,\n    username,\n    title,\n    state,\n    phone,\n    role,\n    submission_key,\n    created_at,\n    verification_token,\n    echo_id: submission_key,\n    verification_status,\n    email_verified,\n    is_verified,\n    verified_at,\n    auth_source,\n    account_status\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2176,
+        1664
+      ],
+      "id": "6f071b31-2fd7-470b-8023-36ac2081fefd",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ee-signup",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7699eb0e-2f1d-4420-92d9-d60bd3806c29",
+      "name": "Signup Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2384,
+        1664
+      ],
+      "webhookId": "68e1ac0d-6298-4fa6-a7a4-5cd6a16c395d",
+      "notes": "Receives: { email, full_name, role, password_hash, phone, state, username, title, verification_status, email_verified, is_verified, verified_at, auth_source, account_status, ...role-specific fields }"
+    }
+  ],
+  "connections": {
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Base Profile Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Signup Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Vercel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Partner Business Data": {
+      "main": [
+        [
+          {
+            "node": "Save Partner Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Nurse Profile Data": {
+      "main": [
+        [
+          {
+            "node": "Save Nurse Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Doctor Profile Data": {
+      "main": [
+        [
+          {
+            "node": "Save Doctor Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Patient Medical Kit Data": {
+      "main": [
+        [
+          {
+            "node": "Save Patient Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Partner?": {
+      "main": [
+        [
+          {
+            "node": "Build Partner Business Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Nurse?": {
+      "main": [
+        [
+          {
+            "node": "Build Nurse Profile Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Doctor?": {
+      "main": [
+        [
+          {
+            "node": "Build Doctor Profile Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Patient?": {
+      "main": [
+        [
+          {
+            "node": "Build Patient Medical Kit Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Base Profile": {
+      "main": [
+        [
+          {
+            "node": "Build Signup Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Welcome Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create User Wallet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Partner?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Nurse?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Doctor?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Patient?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Verification Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map to Profiles Schema": {
+      "main": [
+        [
+          {
+            "node": "Save Base Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Base Profile Data": {
+      "main": [
+        [
+          {
+            "node": "Map to Profiles Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Auth User in Supabase": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Create Auth User in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signup Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "389998397733f688a676af7403bd913a5673d749385e7a5b5c4ef925a577f36d"
+  }
+}

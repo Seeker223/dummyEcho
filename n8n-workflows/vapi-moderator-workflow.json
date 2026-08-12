@@ -1,0 +1,579 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vapi-save-dmk",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6930f47b-18b4-469e-bbca-a9aceb395a48",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        128
+      ],
+      "webhookId": "0e18fa42-c042-45d6-8ffe-e1d0f27e0ac1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst toolCallList =\n  body?.message?.toolCallList ||\n  body?.message?.toolCalls ||\n  body?.message?.tool_calls;\n\nif (!Array.isArray(toolCallList) || toolCallList.length === 0) {\n  const submission_id = body.submission_id || body.args?.submission_id;\n  return [\n    {\n      json: {\n        toolName: \"check_patient\",\n        toolCallId: \"test-call-001\",\n        args: { submission_id }\n      }\n    }\n  ];\n}\n\nconst first = toolCallList[0];\n\nconst toolName =\n  first?.function?.name ||\n  first?.name ||\n  first?.function?.function?.name ||\n  \"check_patient\";\n\nconst toolCallId = first?.id || first?.toolCallId || \"missing-toolCallId\";\n\nconst rawArgs =\n  first?.function?.arguments ??\n  first?.arguments ??\n  first?.function?.function?.arguments;\n\nconst parsedArgs =\n  typeof rawArgs === \"string\"\n    ? JSON.parse(rawArgs || \"{}\")\n    : (rawArgs || {});\n\nconst submission_id = parsedArgs.submission_id ?? body.submission_id ?? body.args?.submission_id;\nconst full_name = parsedArgs.full_name ?? body.full_name ?? body.args?.full_name;\nconst update_statement = parsedArgs.update_statement ?? body.update_statement ?? body.args?.update_statement;\n\nreturn [\n  {\n    json: {\n      toolName,\n      toolCallId,\n      args: {\n        ...(submission_id ? { submission_id } : {}),\n        ...(full_name ? { full_name } : {}),\n        ...(update_statement ? { update_statement } : {})\n      }\n    }\n  }\n];"
+      },
+      "id": "aecaf165-af0a-4d77-af7a-7b714cf4939d",
+      "name": "Parse Tool Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-check",
+              "leftValue": "={{ $json.toolName }}",
+              "rightValue": "check_patient",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fa14b9cb-76e8-41a3-99c4-91a7214de279",
+      "name": "Which Tool?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "patients",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "full_name",
+              "condition": "=eq",
+              "keyValue": "={{ $json.args.full_name }}"
+            }
+          ]
+        }
+      },
+      "id": "9c6b98b0-f308-49de-b441-6216782833f1",
+      "name": "Check Patient in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -80
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "rHuygSCFflArOtcb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst found = allItems.length > 0 && allItems[0].json && allItems[0].json.id !== undefined;\nconst toolCallId = $('Parse Tool Call').first().json.toolCallId;\nconst patientData = found ? allItems[0].json : null;\n\nconst result = found\n  ? `true|${JSON.stringify(patientData)}`\n  : 'false';\n\nreturn [{\n  json: {\n    results: [\n      {\n        toolCallId: toolCallId,\n        result: result\n      }\n    ]\n  }\n}];"
+      },
+      "id": "6903839c-481b-4236-9cc4-c58b3718c8e6",
+      "name": "Build Check Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-update",
+              "leftValue": "={{$json.toolName}}",
+              "rightValue": "update_patient",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5258e109-f62c-4a19-8429-099bdd148956",
+      "name": "Is Update?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "patients",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "full_name",
+              "condition": "=eq",
+              "keyValue": "={{$json.args.full_name}}"
+            }
+          ]
+        }
+      },
+      "id": "89acf85d-c41f-4c56-bd00-5412aaa62771",
+      "name": "Fetch Existing Record",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        176,
+        224
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "rHuygSCFflArOtcb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const existing = $input.first().json;\nconst args = $('Parse Tool Call').first().json.args;\nconst updateStatement = args.update_statement;\n\nreturn [{\n  json: {\n    existing_record: existing,\n    update_statement: updateStatement,\n    full_name: args.full_name,\n    toolCallId: $('Parse Tool Call').first().json.toolCallId\n  }\n}];"
+      },
+      "id": "70653301-1380-4f6b-b8a4-506cd66812a7",
+      "name": "Prepare AI Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $input.first().json.message?.content || $input.first().json.text || $input.first().json.content;\nconst toolCallId = $('Prepare AI Context').first().json.toolCallId;\nconst fullName = $('Prepare AI Context').first().json.full_name;\nconst submissionId = $('Prepare AI Context').first().json.existing_record?.submission_key;\nconst existing = $('Fetch Existing Record').first().json;\n\nlet fullUpdated;\ntry {\n  const clean = aiResponse.replace(/```json|```/g, '').trim();\n  fullUpdated = JSON.parse(clean);\n} catch(e) {\n  throw new Error('AI returned invalid JSON: ' + aiResponse);\n}\n\nconst arrayFields = [\n  'conditions', 'surgeries', 'drug_allergies', 'food_allergies',\n  'rx_meds', 'otc_meds', 'herbal_meds', 'immunisations',\n  'mental_history', 'cognitive', 'directives', 'fam_history',\n  'assistive', 'substance_use', 'pets_type', 'pregnancy_complications'\n];\n\nconst notesFields = [\n  'cond_other', 'surg_other', 'meds_notes', 'admit_details',\n  'transfusion_details', 'imm_notes', 'mental_notes', 'mental_current',\n  'dir_notes', 'fam_history_notes', 'assistive_notes',\n  'substance_details', 'lifestyle_notes', 'obgyn_notes'\n];\n\nconst changedFields = {};\nfor (const key of Object.keys(fullUpdated)) {\n  const oldVal = existing[key];\n  const newVal = fullUpdated[key];\n\n  if (arrayFields.includes(key)) {\n    const oldArr = Array.isArray(oldVal) ? oldVal : [];\n    const newArr = Array.isArray(newVal) ? newVal : [];\n    // Only keep truly new items\n    const trulyNew = newArr.filter(item => !oldArr.includes(item));\n    if (trulyNew.length > 0) {\n      changedFields[key] = [...oldArr, ...trulyNew];\n    }\n\n  } else if (notesFields.includes(key)) {\n    // Only append if new value is genuinely different and not already contained\n    const oldStr = (oldVal || '').trim();\n    const newStr = (newVal || '').trim();\n    if (newStr && newStr !== oldStr && !oldStr.includes(newStr)) {\n      changedFields[key] = `${oldStr}\\n${newStr}`;\n    }\n\n  } else {\n    // Replace single value fields only if changed\n    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {\n      changedFields[key] = newVal;\n    }\n  }\n}\n\nreturn [{\n  json: {\n    changedFields,\n    updatedFields: changedFields,\n    fullName,\n    submissionId,\n    toolCallId\n  }\n}];"
+      },
+      "id": "88ed9b17-1192-4500-958f-3d1cf473c904",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "patients",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "submission_key",
+              "condition": "eq",
+              "keyValue": "={{ $json.submission_key }}"
+            }
+          ]
+        },
+        "dataToSend": "autoMapInputData",
+        "inputsToIgnore": "_fullName,_toolCallId,_updatedFields"
+      },
+      "id": "196d2cf8-3aec-4fc5-b40d-6dd20c3d7507",
+      "name": "Update Patient in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        224
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "rHuygSCFflArOtcb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const toolCallId = $('Parse AI Response').first().json.toolCallId;\nconst updatedFields = $('Parse AI Response').first().json.updatedFields;\nconst fieldNames = Object.keys(updatedFields).join(', ');\n\nreturn [{\n  json: {\n    results: [\n      {\n        toolCallId: toolCallId,\n        result: `Your medical profile has been updated. Fields changed: ${fieldNames}. Is there anything else you would like to update?`\n      }\n    ]\n  }\n}];"
+      },
+      "id": "3a6d426c-b3aa-40b8-b828-cab2e0d270e2",
+      "name": "Build Update Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "patients",
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "4b413533-7c24-49e1-b77c-e712d144fcfc",
+      "name": "Save Patient to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        400,
+        544
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "rHuygSCFflArOtcb",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const toolCallId = $('Parse Tool Call').first().json.toolCallId;\n\nreturn [{\n  json: {\n    results: [\n      {\n        toolCallId: toolCallId,\n        result: 'Patient Digital Medical Kit saved successfully.'\n      }\n    ]\n  }\n}];"
+      },
+      "id": "44bdf55f-27e2-4245-998f-206c50dc9197",
+      "name": "Build Save Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "659c8e9e-d2b8-4b52-a84c-582aa2da9cf8",
+      "name": "Respond to VAPI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1936,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a medical record field mapper.\n\nYou will receive:\n\n1. An existing patient record (JSON object)\n2. A plain-English update statement\n\nYour task is to return ONLY a valid JSON object of the COMPLETE updated patient record.\n\nYou MUST merge the update into the existing record while strictly following the schema and validation rules below.\n\nCRITICAL OUTPUT RULES:\n\n* Return ONLY raw JSON.\n* No explanations.\n* No markdown.\n* No comments.\n* No code fences.\n* Always return the FULL updated record.\n* Never return partial updates.\n* Output must be valid JSON parseable by `JSON.parse()`.\n* Do not include fields not present in the schema.\n* Never create additional properties.\n* `additionalProperties` MUST effectively be false.\n\nMERGING RULES:\n\n* Preserve all existing fields and values unless explicitly updated.\n* Never delete existing information unless explicitly instructed.\n\nFor ARRAY fields:\n\n* Keep existing values.\n* Add new values.\n* Remove duplicates.\n* Preserve original order when possible.\n* Always return an array.\n\nFor STRING NOTE fields:\nAppend new information on a new line instead of overwriting.\n\nThese note fields include:\n[\n\"dir_notes\",\n\"imm_notes\",\n\"meds_notes\",\n\"mental_notes\",\n\"lifestyle_notes\",\n\"fam_history_notes\",\n\"substance_details\",\n\"transfusion_details\",\n\"obgyn_notes\",\n\"assistive_notes\",\n\"admit_details\",\n\"cond_other\",\n\"pets_other\",\n\"surg_other\"\n]\n\nExample:\nExisting:\n\"Occasional alcohol use\"\n\nUpdate:\n\"Started drinking alcohol again due to feeling down\"\n\nResult:\n\"Occasional alcohol use\\nStarted drinking alcohol again due to feeling down\"\n\nFor SINGLE VALUE fields:\n\n* Replace with the newest valid value.\n* Only if the new value can be safely normalized into the schema.\n\nSCHEMA VALIDATION RULES:\n\n* Every returned field MUST match the expected schema type.\n* Never return invalid enum values.\n* Never invent categories.\n* If an update contains an invalid enum value, normalize it to the closest valid enum.\n* If no safe mapping exists, preserve the existing value.\n* Never output values that would fail database validation.\n\nREQUIRED FIELDS:\nAlways preserve these required fields:\n\n* submission_key\n* full_name\n* dob\n* gender\n\nTYPE RULES:\n\n* Integer fields MUST be integers:\n  para\n  gravida\n  miscarriages\n\n* Array fields MUST always return arrays.\n\n* String fields MUST always return strings.\n\n* Dates MUST remain strings in YYYY-MM-DD format:\n  dob\n  last_menstrual_period\n\nENUM NORMALIZATION RULES\n\ngender:\nAllowed:\n[\"male\",\"female\",\"other\",\"prefer_not\"]\n\nNormalize:\n\n* man, male person → \"male\"\n* woman, female person → \"female\"\n* prefer not to say → \"prefer_not\"\n\nalcohol:\nAllowed:\n[\n\"none\",\n\"occasional\",\n\"weekly\",\n\"daily_light\",\n\"daily_heavy\"\n]\n\nNormalize:\n\n* doesn't drink, never drinks, no alcohol, stopped drinking → \"none\"\n* social drinker, occasionally, once in a while → \"occasional\"\n* weekends, few times weekly → \"weekly\"\n* drinks daily, one drink a day → \"daily_light\"\n* heavy drinker, drinks heavily every day → \"daily_heavy\"\n\nIMPORTANT:\nIf an update describes behaviour without matching enum wording, infer the safest valid enum.\n\nExample:\n\"Started drinking alcohol again due to feeling down, after not usually drinking\"\n→ \"occasional\"\n\nsmoking:\nAllowed:\n[\n\"never\",\n\"former\",\n\"light\",\n\"moderate\",\n\"heavy\"\n]\n\nNormalize:\n\n* never smoked → \"never\"\n* quit smoking → \"former\"\n* smokes sometimes → \"light\"\n* regular smoker → \"moderate\"\n* chain smoker → \"heavy\"\n\npets:\nAllowed:\n[\"Yes\",\"No\"]\n\nNormalize:\n\n* has pets → \"Yes\"\n* no pets → \"No\"\n\nadmit:\nAllowed:\n[\"Yes\",\"No\",\"Not sure\"]\n\ntransfusion:\nAllowed:\n[\"Yes\",\"No\",\"Not sure\"]\n\ndiet:\nAllowed:\n[\n\"I eat everything — no restrictions\",\n\"I don't eat meat\",\n\"I don't eat meat or animal products\",\n\"I only eat Halal food\",\n\"I only eat Kosher food\",\n\"I avoid gluten (wheat, bread, etc.)\",\n\"Other / special diet\"\n]\n\nNormalize:\n\n* vegetarian → \"I don't eat meat\"\n* vegan → \"I don't eat meat or animal products\"\n* halal → \"I only eat Halal food\"\n* kosher → \"I only eat Kosher food\"\n* gluten free → \"I avoid gluten (wheat, bread, etc.)\"\n* no restrictions → \"I eat everything — no restrictions\"\n\nlanguage:\nAllowed:\n[\n\"English\",\n\"Yoruba\",\n\"Hausa\",\n\"Igbo\",\n\"Pidgin\",\n\"French\",\n\"Other\"\n]\n\nreligion:\nAllowed:\n[\n\"Christianity\",\n\"Islam\",\n\"Traditional\",\n\"Other\",\n\"None\"\n]\n\nmarital_status:\nAllowed:\n[\n\"Single\",\n\"Married\",\n\"Divorced\",\n\"Widowed\",\n\"Separated\"\n]\n\nliving_situation:\nAllowed:\n[\n\"I live alone\",\n\"With my partner\",\n\"With my family\",\n\"With housemates\",\n\"In a care home or assisted living\",\n\"I don't have a stable home right now\"\n]\n\nec_relationship:\nAllowed:\n[\n\"Parent\",\n\"Sibling\",\n\"Spouse / Partner\",\n\"Child\",\n\"Friend\",\n\"Guardian\",\n\"Other\"\n]\n\nNormalize:\n\n* wife, husband, spouse, partner, boyfriend, girlfriend → \"Spouse / Partner\"\n* mother, father, mum, dad → \"Parent\"\n* brother, sister → \"Sibling\"\n* son, daughter → \"Child\"\n* caregiver → \"Guardian\"\n* cousin, aunt, uncle, neighbour, coworker → \"Other\"\n\noccupation_cat:\nAllowed:\n[\n\"Healthcare (doctor, nurse, etc.)\",\n\"Teaching or education\",\n\"Farming or agriculture\",\n\"Building or construction\",\n\"Office or desk job\",\n\"Driving or transport\",\n\"Factory or industrial work\",\n\"I'm a student\",\n\"Retired\",\n\"Currently not working\",\n\"Other\"\n]\n\nNormalize:\n\n* doctor, nurse, pharmacist → \"Healthcare (doctor, nurse, etc.)\"\n* teacher, lecturer → \"Teaching or education\"\n* farmer → \"Farming or agriculture\"\n* builder, artisan → \"Building or construction\"\n* office worker, admin, banker → \"Office or desk job\"\n* driver, taxi driver, uber driver, truck driver → \"Driving or transport\"\n* factory worker → \"Factory or industrial work\"\n* student → \"I'm a student\"\n* retired → \"Retired\"\n* unemployed, jobless → \"Currently not working\"\n\nmental_current:\nAllowed:\n[\n\"I feel fine\",\n\"A little low or anxious\",\n\"Quite low or anxious — it's affecting my life\",\n\"Very bad — I'm struggling a lot\"\n]\n\nInfer severity safely from descriptions.\n\nExample:\n\"Feeling down lately\"\n→ \"A little low or anxious\"\n\n\"Depression affecting work and sleep\"\n→ \"Quite low or anxious — it's affecting my life\"\n\n\"Can barely function\"\n→ \"Very bad — I'm struggling a lot\"\n\nFINAL VALIDATION BEFORE OUTPUT:\n\n* Ensure JSON is valid.\n* Ensure all enums are valid.\n* Ensure required fields exist.\n* Ensure no extra properties exist.\n* Ensure all field types match schema.\n* Ensure database insertion will not fail.\n* Return ONLY the final raw JSON object.\nCRITICAL ENUM SAFETY RULES:\n\n* Enum values MUST match EXACTLY character-for-character.\n* Never add leading or trailing whitespace.\n* Never alter punctuation.\n* Never rephrase enum labels.\n* Never approximate enum values.\n* Always copy enum values EXACTLY from the allowed list.\n\nBefore returning output:\n\n1. Trim whitespace from all string fields.\n2. Validate every enum field against its allowed values.\n3. If a generated value does not exactly match an enum:\n\n   * map it to the closest exact allowed enum value\n   * otherwise preserve the existing valid value.\n4. Never output invalid enum strings.\n\nFor `mental_current`, ONLY use EXACTLY one of these values:\n\n[\n\"I feel fine\",\n\"A little low or anxious\",\n\"Quite low or anxious — it's affecting my life\",\n\"Very bad — I'm struggling a lot\"\n]\n\nImportant:\n\n* Do not add spaces before or after values.\n* Preserve the em dash (—) exactly.\n* Preserve apostrophes exactly.\n* Copy the enum string verbatim.\n\n",
+              "role": "system"
+            },
+            {
+              "content": "=Existing patient record:\n{{ JSON.stringify($('Prepare AI Context').first().json.existing_record) }}\n\nUpdate statement:\n{{ $('Prepare AI Context').first().json.update_statement }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dc5eb910-9d0a-4960-99c5-ff963be38dd9",
+      "name": "AI Smart Field Mapper",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        624,
+        224
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "const { changedFields, submissionId, fullName, toolCallId, updatedFields } = $input.first().json;\n\n// Spread only changedFields to top level for Supabase auto-mapping\n// Prefix metadata fields with underscore so Supabase ignores them\nreturn [{\n  json: {\n    ...changedFields,\n    submission_key: submissionId,\n    _fullName: fullName,\n    _toolCallId: toolCallId,\n    _updatedFields: updatedFields\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        224
+      ],
+      "id": "1573e068-0443-49e9-a787-25027e9c2784",
+      "name": "Prepare Supabase Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nfunction generateHex(length) {\n  const chars = '0123456789abcdef';\n  let hex = '';\n  for (let i = 0; i < length; i++) {\n    hex += chars[Math.floor(Math.random() * 16)];\n  }\n  return hex;\n}\n\nfunction generateSubmissionId() {\n  return `EE_${generateHex(32)}`;\n}\n\nfunction generateUserId() {\n  return `${generateHex(8)}-${generateHex(4)}-4${generateHex(3)}-${['8','9','a','b'][Math.floor(Math.random()*4)]}${generateHex(3)}-${generateHex(12)}`;\n}\n\nconst submission_key = generateSubmissionId();\nconst user_id = generateUserId();\n\nconst args = {\n  ...body.args,\n  submission_key,\n  user_id\n};\n\nconst flatArgs = {};\nfor (const [key, val] of Object.entries(args)) {\n  if (Array.isArray(val)) {\n    flatArgs[key] = JSON.stringify(val);\n  } else if (val === null || val === undefined) {\n    flatArgs[key] = null;\n  } else {\n    flatArgs[key] = val;\n  }\n}\n\nreturn [{ json: flatArgs }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        528
+      ],
+      "id": "98943a8a-ce8c-4803-a766-70d8eeff3d18",
+      "name": "Generate New EchoID"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const key in $json) {\n  if (typeof $json[key] === 'string') {\n    $json[key] = $json[key].trim();\n  }\n}\n\nreturn [{ json: $json }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        224
+      ],
+      "id": "f146258f-d39d-4d74-aaa7-cd57da9ac039",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Tool Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Tool Call": {
+      "main": [
+        [
+          {
+            "node": "Which Tool?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which Tool?": {
+      "main": [
+        [
+          {
+            "node": "Check Patient in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Update?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Patient in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Build Check Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Check Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to VAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Update?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Existing Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate New EchoID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Existing Record": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Context": {
+      "main": [
+        [
+          {
+            "node": "AI Smart Field Mapper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Prepare Supabase Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Patient in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Build Update Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Update Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to VAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Patient to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Build Save Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Save Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to VAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Smart Field Mapper": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Supabase Fields": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate New EchoID": {
+      "main": [
+        [
+          {
+            "node": "Save Patient to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Update Patient in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "389998397733f688a676af7403bd913a5673d749385e7a5b5c4ef925a577f36d"
+  }
+}

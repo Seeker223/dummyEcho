@@ -1,0 +1,71 @@
+{
+  "name": "Class Register Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "class-register",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "class-register-sync-12345"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $input.first().json.body || $input.first().json;\n\nif (!payload || !payload.students) {\n  return [{ json: { error: 'Invalid or empty payload received' } }];\n}\n\nconst meta = payload.meta || {};\nconst students = payload.students || [];\nconst attendance = payload.attendance || {};\nconst scores = payload.scores || {};\n\nconst results = students.map(student => {\n  const sId = student.id;\n  \n  const t1 = (scores.term1 && scores.term1[sId]) || {};\n  const t2 = (scores.term2 && scores.term2[sId]) || {};\n  const t3 = (scores.term3 && scores.term3[sId]) || {};\n  \n  let p1 = 0, a1 = 0;\n  if (attendance.term1 && attendance.term1[sId]) {\n    attendance.term1[sId].forEach(st => {\n      if (st === 'present') p1++; \n      else if (st === 'absent') a1++; \n    });\n  }\n\n  return {\n    json: {\n      Year: meta.year,\n      Class: meta.className,\n      Subject: meta.subject,\n      Teacher: meta.teacher,\n      SyncTime: meta.timestamp,\n      StudentName: student.name || 'Unnamed Student',\n      T1_CA1: t1.ca1, T1_CA2: t1.ca2, T1_CA3: t1.ca3, T1_CA4: t1.ca4, T1_Exam: t1.exam,\n      T2_CA1: t2.ca1, T2_CA2: t2.ca2, T2_CA3: t2.ca3, T2_CA4: t2.ca4, T2_Exam: t2.exam,\n      T3_CA1: t3.ca1, T3_CA2: t3.ca2, T3_CA3: t3.ca3, T3_CA4: t3.ca4, T3_Exam: t3.exam,\n      T1_DaysPresent: p1, T1_DaysAbsent: a1\n    }\n  };\n});\n\nreturn results;"
+      },
+      "name": "Format Data for Sheets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Format Data for Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data for Sheets": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
